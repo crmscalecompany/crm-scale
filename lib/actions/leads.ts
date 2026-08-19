@@ -25,6 +25,9 @@ export interface LeadFilters {
   owner_sdr_id?: string;
   criado_em_from?: string;
   criado_em_to?: string;
+  /** Fixed per-tab constraint for "Quadro Orgânico"/"Quadro de Tráfego" —
+   * see lib/data/leads.ts's ListLeadsParams.origem_in. */
+  origem_in?: string[];
 }
 
 export async function createLeadAction(input: LeadInsert) {

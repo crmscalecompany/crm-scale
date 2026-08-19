@@ -28,6 +28,11 @@ export interface ListLeadsParams {
   criado_em_from?: string;
   criado_em_to?: string;
   updated_since?: string;
+  /** Fixed per-tab constraint for "Quadro Orgânico"/"Quadro de Tráfego"
+   * (components/crm/crm-workspace.tsx) — which `origem` values count as
+   * that lane. Not exposed in the Filtros popover; the workspace injects
+   * it per view, on top of whatever the user picked there. */
+  origem_in?: string[];
   limit: number;
   offset?: number;
   /** Cursor pagination — when set, returns leads strictly after this
@@ -70,6 +75,7 @@ export async function listLeads(db: Client, params: ListLeadsParams) {
     query = query.in("id", leadIds);
   }
 
+  if (params.origem_in && params.origem_in.length > 0) query = query.in("origem", params.origem_in);
   if (params.status) query = query.eq("status", params.status as Database["public"]["Tables"]["leads"]["Row"]["status"]);
   if (params.niche_id) query = query.eq("niche_id", params.niche_id);
   if (params.owner_sdr_id) query = query.eq("owner_sdr_id", params.owner_sdr_id);

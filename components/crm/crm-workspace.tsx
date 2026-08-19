@@ -76,6 +76,22 @@ interface CrmWorkspaceProps {
 
 type KanbanSubView = "leads" | "negocios";
 
+// Which `origem` values count as each lane for the Quadro Orgânico/Quadro
+// de Tráfego tabs (see crm-view-tabs.tsx's CRM_VIEWS comment for why these
+// exist despite the earlier "Análise Tráfego" rejection). Values must match
+// exactly what writes `leads.origem` — the site's own webhooks
+// (app/api/v1/webhooks/{blog,cases,contato}/route.ts) for orgânico.
+// "Meta Ads" is the historical Monday-migrated value and already accounts
+// for ~5,600 of the ~7,400 leads in the table — Quadro de Tráfego is NOT
+// sparse, it's most of the database. LPs de tráfego aren't wired into the
+// CRM yet (still deciding internal vs external API); add their real
+// `origem` string here once that pipeline exists. Google Ads (~240 leads)
+// and other historical sources (Outros/Recomendação/Social Selling/Evento/
+// Outbound/Google Orgânico, ~1,750 leads combined) intentionally fall into
+// neither board — only what the user explicitly named.
+const ORIGEM_ORGANICO = ["Site — Blog", "Site — Cases", "Site — Contato"];
+const ORIGEM_TRAFEGO = ["Meta Ads"];
+
 // The single real screen inside app/(app). Two independent nav levels:
 // - AppSidebar switches between *products* (CRM / Atendimento / Automações
 //   — only CRM exists so far).
@@ -185,6 +201,8 @@ export function CrmWorkspace({
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <CrmViewTabs active={activeView} onSelect={selectView} />
                 {(activeView === "quadro_principal" ||
+                  activeView === "quadro_organico" ||
+                  activeView === "quadro_trafego" ||
                   activeView === "kanban") && (
                   <>
                     <LeadsFilters
@@ -231,6 +249,58 @@ export function CrmWorkspace({
                     attributions={attributions}
                     deals={dealsForLeads}
                     filters={filters}
+                    visibleColumns={visibleColumns}
+                  />
+                </div>
+              )}
+
+              {visitedViews.has("quadro_organico") && (
+                <div
+                  className={
+                    activeView === "quadro_organico" ? undefined : "hidden"
+                  }
+                >
+                  <LeadsBoard
+                    view="table"
+                    initialLeads={[]}
+                    totalLeads={0}
+                    niches={niches}
+                    sdrs={sdrs}
+                    closers={closers}
+                    reasons={sdrReasons}
+                    lostReasons={sdrLostReasons}
+                    qualifiedLeadIds={[]}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    attributions={[]}
+                    deals={[]}
+                    filters={{ ...filters, origem_in: ORIGEM_ORGANICO }}
+                    visibleColumns={visibleColumns}
+                  />
+                </div>
+              )}
+
+              {visitedViews.has("quadro_trafego") && (
+                <div
+                  className={
+                    activeView === "quadro_trafego" ? undefined : "hidden"
+                  }
+                >
+                  <LeadsBoard
+                    view="table"
+                    initialLeads={[]}
+                    totalLeads={0}
+                    niches={niches}
+                    sdrs={sdrs}
+                    closers={closers}
+                    reasons={sdrReasons}
+                    lostReasons={sdrLostReasons}
+                    qualifiedLeadIds={[]}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    attributions={[]}
+                    deals={[]}
+                    filters={{ ...filters, origem_in: ORIGEM_TRAFEGO }}
                     visibleColumns={visibleColumns}
                   />
                 </div>

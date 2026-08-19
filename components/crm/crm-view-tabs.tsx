@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, Phone, Table2, Target } from "lucide-react";
+import { LayoutGrid, Megaphone, Phone, Sprout, Table2, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CrmViewDef {
@@ -17,8 +17,21 @@ export interface CrmViewDef {
 // similar at first — they're real role-scoped pipeline boards with their
 // own grouping logic (see sdr-pipeline-board.tsx/closer-pipeline-board.tsx),
 // not filtered views of the table.
+//
+// Quadro Orgânico/Quadro de Tráfego (added later, see crm-workspace.tsx's
+// ORIGEM_ORGANICO/ORIGEM_TRAFEGO) look like the same "saved filter" shape
+// that was rejected above, but the user asked for them specifically as an
+// operational split, not an analytics one — Case/Artigo/Site Institucional
+// leads work differently day-to-day than paid-traffic leads, so SDRs
+// working one lane don't want the other cluttering the table. Note Quadro
+// de Tráfego is NOT the sparse/new-pipeline board it might sound like —
+// "Meta Ads" alone (the historical Monday-migrated origem) already covers
+// most of the leads table, so this tab starts out showing the bulk of
+// existing data, not an empty list waiting on a future integration.
 export const CRM_VIEWS: CrmViewDef[] = [
   { key: "quadro_principal", label: "Quadro principal", icon: Table2, enabled: true },
+  { key: "quadro_organico", label: "Quadro Orgânico", icon: Sprout, enabled: true },
+  { key: "quadro_trafego", label: "Quadro de Tráfego", icon: Megaphone, enabled: true },
   { key: "kanban", label: "Kanban", icon: LayoutGrid, enabled: true },
   { key: "sdrs", label: "SDR's", icon: Phone, enabled: true },
   { key: "closers", label: "Closer's", icon: Target, enabled: true },
