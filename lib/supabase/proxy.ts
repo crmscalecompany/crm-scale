@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/unsubscribe"];
 
 // Called from the root proxy.ts (Next.js 16 renamed "Middleware" to "Proxy").
 // Refreshes the Supabase session cookie on every request and gates the app

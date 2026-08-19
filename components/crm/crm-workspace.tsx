@@ -13,6 +13,7 @@ import { DealsBoard } from "@/components/deals/deals-board";
 import { SdrPipelineBoard } from "@/components/leads/sdr-pipeline-board";
 import { CloserPipelineBoard } from "@/components/deals/closer-pipeline-board";
 import { CommissionsView } from "@/components/commissions/commissions-view";
+import { NotifySubscribersView } from "@/components/automations/notify-subscribers-view";
 import type { LeadFilters } from "@/lib/actions/leads";
 import { DEFAULT_VISIBLE_COLUMNS } from "@/lib/leads-table-columns";
 import { useLocalStorageSet } from "@/lib/use-local-storage-set";
@@ -346,6 +347,14 @@ export function CrmWorkspace({
                 closers={closers}
                 currentUserRole={currentUserRole}
               />
+            </div>
+          )}
+
+          {visitedSections.has("automacoes") && (
+            <div
+              className={activeSection === "automacoes" ? undefined : "hidden"}
+            >
+              <NotifySubscribersView currentUserRole={currentUserRole} />
             </div>
           )}
         </main>

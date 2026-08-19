@@ -12,10 +12,11 @@ export interface SidebarSectionDef {
   enabled: boolean;
 }
 
-// Top-level sections of the app — CRM (leads/deals) and Comissões (regras +
-// lista, components/commissions/commissions-view.tsx), plus two the user
-// has already told us are coming: Atendimento (real WhatsApp conversations)
-// and Automações. The CRM section's own sub-views (Quadro principal,
+// Top-level sections of the app — CRM (leads/deals), Comissões (regras +
+// lista, components/commissions/commissions-view.tsx), and Automações
+// ("Avisar inscritos", components/automations/notify-subscribers-view.tsx),
+// plus Atendimento (real WhatsApp conversations) still coming. The CRM
+// section's own sub-views (Quadro principal,
 // Kanban, Este Mês, etc) live as tabs inside the CRM workspace itself
 // (components/crm/crm-view-tabs.tsx), not here — this sidebar is for
 // switching between products, not between views of one product.
@@ -23,7 +24,7 @@ export const SIDEBAR_SECTIONS: SidebarSectionDef[] = [
   { key: "crm", label: "CRM", icon: Users, enabled: true },
   { key: "comissoes", label: "Comissões", icon: DollarSign, enabled: true },
   { key: "atendimento", label: "Atendimento", icon: MessageCircle, enabled: false },
-  { key: "automacoes", label: "Automações", icon: Zap, enabled: false },
+  { key: "automacoes", label: "Automações", icon: Zap, enabled: true },
 ];
 
 const ROLE_LABEL: Record<string, string> = {

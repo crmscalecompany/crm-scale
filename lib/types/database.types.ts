@@ -469,6 +469,7 @@ export type Database = {
           criado_em: string | null
           direcao: string | null
           email: string | null
+          email_opt_out: boolean
           empresa: string | null
           faturamento_medio: number | null
           faturamento_medio_label: string | null
@@ -494,6 +495,7 @@ export type Database = {
           criado_em?: string | null
           direcao?: string | null
           email?: string | null
+          email_opt_out?: boolean
           empresa?: string | null
           faturamento_medio?: number | null
           faturamento_medio_label?: string | null
@@ -519,6 +521,7 @@ export type Database = {
           criado_em?: string | null
           direcao?: string | null
           email?: string | null
+          email_opt_out?: boolean
           empresa?: string | null
           faturamento_medio?: number | null
           faturamento_medio_label?: string | null
