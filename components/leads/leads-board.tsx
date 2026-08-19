@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LayoutGrid, Table2 } from "lucide-react";
 import { KanbanBoard, type KanbanColumnDef } from "@/components/kanban/kanban-board";
 import { LeadCard } from "@/components/kanban/lead-card";
 import { LeadsTable } from "@/components/leads/leads-table";
@@ -22,6 +23,7 @@ import {
 import { moveDealAction } from "@/lib/actions/deals";
 import { createNicheAction } from "@/lib/actions/niches";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
+import { cn } from "@/lib/utils";
 import type { Database, LeadStatus, DealStatus } from "@/lib/types/database.types";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
@@ -65,7 +67,6 @@ interface Niche {
 }
 
 interface LeadsBoardProps {
-  view: "table" | "kanban";
   initialLeads: Lead[];
   totalLeads: number;
   niches: Niche[];
@@ -91,22 +92,25 @@ interface LeadsBoardProps {
   visibleColumns: Set<string>;
   /** A niche created from the table's inline "Nicho" combobox bubbles up
    * to CrmWorkspace, which owns the `niches` list as state precisely so
-   * every mounted board (Quadro principal/Orgânico/Tráfego/Kanban all stay
-   * separate LeadsBoard instances) sees the new option immediately,
-   * without a full page reload. */
+   * every mounted board (Quadro principal/Orgânico/Tráfego are separate
+   * LeadsBoard instances) sees the new option immediately, without a full
+   * page reload. */
   onNicheCreated: (niche: Niche) => void;
 }
 
 // Owns all lead state (list, qualification set, the four modals) regardless
-// of which view is showing — `view` is controlled by the parent
-// CrmWorkspace (sidebar selection), not managed here, so switching views
+// of which view is showing. `view` (table vs. kanban) is now local state,
+// not a prop — each Quadro tab is its own LeadsBoard instance with its own
+// already-filtered lead list (see crm-workspace.tsx's ORIGEM_ORGANICO/
+// ORIGEM_TRAFEGO), so a per-instance toggle is what makes "see Quadro
+// Orgânico as a kanban" show *orgânico* leads instead of the whole table,
+// which a single global "Kanban" tab couldn't do. Switching views
 // doesn't lose in-flight state or refetch anything.
 //
 // deals/attributions/totalLeads are local state (not just derived from
 // props) because "Carregar mais" and filtering both need to replace/extend
 // them — see handleLoadMore and the filters effect below.
 export function LeadsBoard({
-  view,
   initialLeads,
   totalLeads: initialTotalLeads,
   niches,
@@ -124,6 +128,7 @@ export function LeadsBoard({
   visibleColumns,
   onNicheCreated,
 }: LeadsBoardProps) {
+  const [view, setView] = useState<"table" | "kanban">("table");
   const [leads, setLeads] = useState(initialLeads);
   const [totalLeads, setTotalLeads] = useState(initialTotalLeads);
   const [deals, setDeals] = useState(initialDeals);
@@ -336,13 +341,38 @@ export function LeadsBoard({
         </div>
       )}
 
-      {view === "kanban" && (
-        <div className="mb-4 flex items-center justify-end">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex w-fit rounded-lg border border-hairline p-0.5 text-sm">
+          <button
+            type="button"
+            onClick={() => setView("table")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
+              view === "table" ? "bg-accent-primary/20 text-primary" : "text-secondary"
+            )}
+          >
+            <Table2 size={14} />
+            Tabela
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("kanban")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
+              view === "kanban" ? "bg-accent-primary/20 text-primary" : "text-secondary"
+            )}
+          >
+            <LayoutGrid size={14} />
+            Kanban
+          </button>
+        </div>
+
+        {view === "kanban" && (
           <button type="button" onClick={() => setShowCreateLead(true)} className={primaryButtonClass}>
             + Novo lead
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {view === "table" ? (
         <>

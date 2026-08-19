@@ -18,7 +18,6 @@ import { LeadsTrash } from "@/components/leads/leads-trash";
 import type { LeadFilters } from "@/lib/actions/leads";
 import { DEFAULT_VISIBLE_COLUMNS } from "@/lib/leads-table-columns";
 import { useLocalStorageSet } from "@/lib/use-local-storage-set";
-import { cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database.types";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
@@ -75,8 +74,6 @@ interface CrmWorkspaceProps {
   attributions: LeadAttribution[];
 }
 
-type KanbanSubView = "leads" | "negocios";
-
 // Which `origem` values count as each lane for the Quadro Orgânico/Quadro
 // de Tráfego tabs (see crm-view-tabs.tsx's CRM_VIEWS comment for why these
 // exist despite the earlier "Análise Tráfego" rejection). Values must match
@@ -97,9 +94,11 @@ const ORIGEM_TRAFEGO = ["Meta Ads"];
 // - AppSidebar switches between *products* (CRM / Atendimento / Automações
 //   — only CRM exists so far).
 // - CrmViewTabs (in the toolbar below, next to the filter) switches between
-//   *views of the CRM product* (Quadro principal / Kanban / future saved
-//   views) — these aren't sidebar items because they're specific to this
-//   one product, not top-level sections.
+//   *views of the CRM product* (Quadro principal / Orgânico / Tráfego /
+//   Negócios / future saved views) — these aren't sidebar items because
+//   they're specific to this one product, not top-level sections. Table vs.
+//   Kanban is a further toggle *inside* each Quadro tab now (leads-board.tsx),
+//   not one of these — see crm-view-tabs.tsx's CRM_VIEWS comment for why.
 // LeadsBoard/DealsBoard keep owning their own data/mutation state; this
 // just decides which one is mounted and owns the filter both share.
 export function CrmWorkspace({
@@ -126,12 +125,11 @@ export function CrmWorkspace({
   // Lifted to state (not just the prop) so a niche created from the leads
   // table's inline "Nicho" combobox (editable-cell.tsx) shows up
   // immediately in every mounted board's dropdown — Quadro principal/
-  // Orgânico/Tráfego/Kanban are separate LeadsBoard instances that all
-  // read from this one list.
+  // Orgânico/Tráfego are separate LeadsBoard instances that all read
+  // from this one list.
   const [niches, setNiches] = useState(initialNiches);
   const [activeSection, setActiveSection] = useState("crm");
   const [activeView, setActiveView] = useState("quadro_principal");
-  const [kanbanSubView, setKanbanSubView] = useState<KanbanSubView>("leads");
   const [filters, setFilters] = useState<LeadFilters>({});
   const [visibleColumns, setVisibleColumns] = useLocalStorageSet(
     "crm:leads-table:columns",
@@ -150,9 +148,6 @@ export function CrmWorkspace({
   const [visitedViews, setVisitedViews] = useState<Set<string>>(
     new Set(["quadro_principal"]),
   );
-  const [visitedKanbanSubViews, setVisitedKanbanSubViews] = useState<
-    Set<KanbanSubView>
-  >(new Set(["leads"]));
   const [visitedSections, setVisitedSections] = useState<Set<string>>(
     new Set(["crm"]),
   );
@@ -167,13 +162,6 @@ export function CrmWorkspace({
   function selectView(view: string) {
     setActiveView(view);
     setVisitedViews((prev) =>
-      prev.has(view) ? prev : new Set(prev).add(view),
-    );
-  }
-
-  function selectKanbanSubView(view: KanbanSubView) {
-    setKanbanSubView(view);
-    setVisitedKanbanSubViews((prev) =>
       prev.has(view) ? prev : new Set(prev).add(view),
     );
   }
@@ -217,8 +205,7 @@ export function CrmWorkspace({
                 <CrmViewTabs active={activeView} onSelect={selectView} />
                 {(activeView === "quadro_principal" ||
                   activeView === "quadro_organico" ||
-                  activeView === "quadro_trafego" ||
-                  activeView === "kanban") && (
+                  activeView === "quadro_trafego") && (
                   <>
                     <LeadsFilters
                       filters={filters}
@@ -250,7 +237,6 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
-                    view="table"
                     initialLeads={leads}
                     totalLeads={totalLeads}
                     niches={niches}
@@ -278,7 +264,6 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
-                    view="table"
                     initialLeads={[]}
                     totalLeads={0}
                     niches={niches}
@@ -306,7 +291,6 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
-                    view="table"
                     initialLeads={[]}
                     totalLeads={0}
                     niches={niches}
@@ -327,79 +311,17 @@ export function CrmWorkspace({
                 </div>
               )}
 
-              {visitedViews.has("kanban") && (
-                <div className={activeView === "kanban" ? undefined : "hidden"}>
-                  <div className="mb-4 flex w-fit rounded-lg border border-hairline p-0.5 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => selectKanbanSubView("leads")}
-                      className={cn(
-                        "rounded-md px-3 py-1 transition",
-                        kanbanSubView === "leads"
-                          ? "bg-accent-primary/20 text-primary"
-                          : "text-secondary",
-                      )}
-                    >
-                      Leads
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectKanbanSubView("negocios")}
-                      className={cn(
-                        "rounded-md px-3 py-1 transition",
-                        kanbanSubView === "negocios"
-                          ? "bg-accent-primary/20 text-primary"
-                          : "text-secondary",
-                      )}
-                    >
-                      Negócios
-                    </button>
-                  </div>
-
-                  {visitedKanbanSubViews.has("leads") && (
-                    <div
-                      className={
-                        kanbanSubView === "leads" ? undefined : "hidden"
-                      }
-                    >
-                      <LeadsBoard
-                        view="kanban"
-                        initialLeads={leads}
-                        totalLeads={totalLeads}
-                        niches={niches}
-                        sdrs={sdrs}
-                        closers={closers}
-                        reasons={sdrReasons}
-                        lostReasons={sdrLostReasons}
-                        closerLostReasons={closerLostReasons}
-                        qualifiedLeadIds={qualifiedLeadIds}
-                        currentUserId={currentUserId}
-                        currentUserRole={currentUserRole}
-                        attributions={attributions}
-                        deals={dealsForLeads}
-                        filters={filters}
-                        visibleColumns={visibleColumns}
-                        onNicheCreated={handleNicheCreated}
-                      />
-                    </div>
-                  )}
-                  {visitedKanbanSubViews.has("negocios") && (
-                    <div
-                      className={
-                        kanbanSubView === "negocios" ? undefined : "hidden"
-                      }
-                    >
-                      <DealsBoard
-                        initialDeals={deals}
-                        leads={dealLeadRefs}
-                        closers={closers}
-                        reasons={closerReasons}
-                        qualifiedDealIds={qualifiedDealIds}
-                        meetingsByDealId={new Map(meetingsByDealId)}
-                        lostReasons={closerLostReasons}
-                      />
-                    </div>
-                  )}
+              {visitedViews.has("negocios") && (
+                <div className={activeView === "negocios" ? undefined : "hidden"}>
+                  <DealsBoard
+                    initialDeals={deals}
+                    leads={dealLeadRefs}
+                    closers={closers}
+                    reasons={closerReasons}
+                    qualifiedDealIds={qualifiedDealIds}
+                    meetingsByDealId={new Map(meetingsByDealId)}
+                    lostReasons={closerLostReasons}
+                  />
                 </div>
               )}
 

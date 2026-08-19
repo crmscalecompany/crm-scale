@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, Megaphone, Phone, Sprout, Table2, Target, Trash2 } from "lucide-react";
+import { Handshake, Megaphone, Phone, Sprout, Table2, Target, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CrmViewDef {
@@ -28,11 +28,20 @@ export interface CrmViewDef {
 // "Meta Ads" alone (the historical Monday-migrated origem) already covers
 // most of the leads table, so this tab starts out showing the bulk of
 // existing data, not an empty list waiting on a future integration.
+//
+// There's no "Kanban" entry — per explicit user feedback, Kanban isn't a
+// peer of the three Quadro tabs, it's an alternate *view* of the same
+// filtered lead list each one already shows. Each Quadro tab now owns its
+// own Tabela/Kanban toggle internally (see leads-board.tsx), so switching
+// to Kanban from Quadro Orgânico shows orgânico leads in kanban form, not
+// the whole unfiltered table like the old standalone tab did. "Negócios"
+// (the deals kanban, previously reached via Kanban > Negócios) is its own
+// top-level tab now since deals aren't part of the orgânico/tráfego split.
 export const CRM_VIEWS: CrmViewDef[] = [
   { key: "quadro_principal", label: "Quadro principal", icon: Table2, enabled: true },
   { key: "quadro_organico", label: "Quadro Orgânico", icon: Sprout, enabled: true },
   { key: "quadro_trafego", label: "Quadro de Tráfego", icon: Megaphone, enabled: true },
-  { key: "kanban", label: "Kanban", icon: LayoutGrid, enabled: true },
+  { key: "negocios", label: "Negócios", icon: Handshake, enabled: true },
   { key: "sdrs", label: "SDR's", icon: Phone, enabled: true },
   { key: "closers", label: "Closer's", icon: Target, enabled: true },
   { key: "lixeira", label: "Lixeira", icon: Trash2, enabled: true },
