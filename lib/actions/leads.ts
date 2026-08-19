@@ -1,6 +1,5 @@
 "use server";
 
-import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createLead, updateLead, getLead, listLeads, type LeadCursor } from "@/lib/data/leads";
@@ -8,7 +7,7 @@ import { listDealsByLeadIds } from "@/lib/data/deals";
 import { listAttributionByLeadIds } from "@/lib/data/lead-attribution";
 import { listQualificationsFor } from "@/lib/data/qualifications";
 import { monthDateRange } from "@/lib/format";
-import { sendEmail } from "@/lib/mailer";
+import { sendBatchEmails } from "@/lib/adapters/resend";
 import { renderPrimeiroContatoEmail } from "@/lib/email-templates/primeiro-contato";
 import type { Database, DealStatus, LeadStatus } from "@/lib/types/database.types";
 
@@ -81,9 +80,10 @@ export async function markLeadLostAction(id: string, motivoId: string) {
 
 // "Enviar e-mail de primeiro contato" — a fixed company template (see
 // lib/email-templates/primeiro-contato.ts), always sent/signed as José
-// Matheus regardless of which SDR clicks the button, via Gmail SMTP
-// (lib/mailer.ts). Personalized only by lead-specific fields (nome,
-// empresa); José's own name/WhatsApp are baked into the template itself.
+// Matheus regardless of which SDR clicks the button, via Resend
+// (lib/adapters/resend.ts) from the shared contato@scalecompany.com.br
+// address. Personalized only by lead-specific fields (nome, empresa);
+// José's own name/WhatsApp are baked into the template itself.
 export async function sendFirstContactEmailAction(leadId: string): Promise<void> {
   const db = await createClient();
   const lead = await getLead(db, leadId);
@@ -95,14 +95,10 @@ export async function sendFirstContactEmailAction(leadId: string): Promise<void>
 
   const primeiroNome = lead.nome.trim().split(/\s+/)[0] || lead.nome;
   const nomeEscritorio = lead.empresa || lead.nome;
+  const logoUrl = `${process.env.CRM_PUBLIC_URL ?? "https://crm.scalecompany.com.br"}/scale-icon.png`;
 
-  const { subject, html } = renderPrimeiroContatoEmail({ primeiroNome, nomeEscritorio, whatsappNumber });
-  await sendEmail({
-    to: lead.email,
-    subject,
-    html,
-    attachments: [{ filename: "scale-icon.png", path: path.join(process.cwd(), "public/scale-icon.png"), cid: "scale-logo" }],
-  });
+  const { subject, html } = renderPrimeiroContatoEmail({ primeiroNome, nomeEscritorio, whatsappNumber, logoUrl });
+  await sendBatchEmails([{ to: lead.email, subject, html, fromName: "José Matheus" }]);
 }
 
 // Backs the SDR's pipeline board — a specific SDR's active leads aren't

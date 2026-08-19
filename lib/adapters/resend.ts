@@ -4,6 +4,10 @@ interface BatchEmailItem {
   to: string;
   subject: string;
   html: string;
+  /** Display name in the From header (e.g. "José Matheus" for the
+   * first-contact email's persona vs "Scale Company" for bulk
+   * subscriber notifications). Defaults to "Scale Company". */
+  fromName?: string;
 }
 
 const RESEND_BATCH_LIMIT = 100;
@@ -32,7 +36,7 @@ export async function sendBatchEmails(items: BatchEmailItem[]): Promise<void> {
       },
       body: JSON.stringify(
         chunk.map((item) => ({
-          from: `Scale Company <${from}>`,
+          from: `${item.fromName ?? "Scale Company"} <${from}>`,
           to: [item.to],
           subject: item.subject,
           html: item.html,

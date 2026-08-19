@@ -5,6 +5,10 @@ export interface PrimeiroContatoParams {
   primeiroNome: string;
   nomeEscritorio: string;
   whatsappNumber: string; // "55DDDNUMERO", digits only
+  /** Hosted URL for the Scale logo — a plain <img src>, not a cid:
+   * attachment. Resend's attachments API doesn't support Nodemailer's
+   * cid-embedding, and a hosted URL is the more portable choice anyway. */
+  logoUrl: string;
 }
 
 function whatsappLink(whatsappNumber: string): string {
@@ -12,7 +16,7 @@ function whatsappLink(whatsappNumber: string): string {
   return `https://wa.me/${whatsappNumber}?text=${text}`;
 }
 
-export function renderPrimeiroContatoEmail({ primeiroNome, nomeEscritorio, whatsappNumber }: PrimeiroContatoParams): { subject: string; html: string } {
+export function renderPrimeiroContatoEmail({ primeiroNome, nomeEscritorio, whatsappNumber, logoUrl }: PrimeiroContatoParams): { subject: string; html: string } {
   const subject = `${primeiroNome}, antes de te enviar uma proposta, preciso te perguntar uma coisa`;
   const href = whatsappLink(whatsappNumber);
 
@@ -65,7 +69,7 @@ export function renderPrimeiroContatoEmail({ primeiroNome, nomeEscritorio, whats
               <table border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="width:42px; height:42px; vertical-align:middle;">
-                    <img src="cid:scale-logo" width="42" height="42" alt="Scale" style="display:block; border-radius:10px;">
+                    <img src="${logoUrl}" width="42" height="42" alt="Scale" style="display:block; border-radius:10px;">
                   </td>
 
                   <td style="padding-left:12px; vertical-align:middle;">
