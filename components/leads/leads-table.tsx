@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { ALL_COLUMNS, renderColumnCell, type ColumnContext, type PersonRef } from "@/lib/leads-table-columns";
+import { ALL_COLUMNS, COLUMN_EDIT, renderColumnCell, type ColumnContext, type PersonRef } from "@/lib/leads-table-columns";
+import { EditableCell, type EditableOption } from "@/components/leads/editable-cell";
 import { fieldInputClass, primaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database.types";
@@ -19,6 +20,14 @@ interface LeadsTableProps {
   onRowClick: (lead: Lead) => void;
   visibleColumns: Set<string>;
   onNewLead: () => void;
+  /** Inline cell editing (double-click text fields, single-click
+   * selects/combos — see components/leads/editable-cell.tsx). Persists via
+   * the same updateLeadDetailsAction the detail panel uses; the parent
+   * (leads-board.tsx) owns optimistic update + rollback, same division of
+   * labor as handleMove/handleClaim there. */
+  onFieldSave: (leadId: string, field: keyof Lead, value: string | null) => Promise<void>;
+  /** "Criar novo nicho" from the inline Nicho combobox. */
+  onCreateNiche: (nome: string) => Promise<{ id: string; nome: string }>;
 }
 
 const CELL_DIVIDER = "border-r border-hairline/30 last:border-r-0";
@@ -46,12 +55,52 @@ const CELL_DIVIDER = "border-r border-hairline/30 last:border-r-0";
 //
 // Row selection (checkboxes) is UI-only for now — no bulk action wired up
 // yet, just the selected-count affordance.
-export function LeadsTable({ leads, sdrById, nicheById, closerById, dealByLeadId, onRowClick, visibleColumns, onNewLead }: LeadsTableProps) {
+const COMBOBOX_FIELDS = ["origem", "direcao", "tipo"] as const;
+
+export function LeadsTable({
+  leads,
+  sdrById,
+  nicheById,
+  closerById,
+  dealByLeadId,
+  onRowClick,
+  visibleColumns,
+  onNewLead,
+  onFieldSave,
+  onCreateNiche,
+}: LeadsTableProps) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const columns = useMemo(() => ALL_COLUMNS.filter((c) => c.required || visibleColumns.has(c.key)), [visibleColumns]);
   const ctx: ColumnContext = { sdrById, nicheById, closerById, dealByLeadId };
+
+  // Dropdown/suggestion options per editable column — recomputed from
+  // what's actually loaded, not a dedicated query (see editable-cell.tsx's
+  // combobox: typing a value that isn't suggested here just creates it).
+  const editOptions = useMemo(() => {
+    const map = new Map<string, EditableOption[]>();
+    map.set(
+      "nicho",
+      [...nicheById.entries()].map(([id, nome]) => ({ id, label: nome }))
+    );
+    map.set(
+      "sdr",
+      [...sdrById.entries()].map(([id, ref]) => ({ id, label: ref.nome }))
+    );
+    for (const field of COMBOBOX_FIELDS) {
+      const values = new Set<string>();
+      for (const lead of leads) {
+        const v = lead[field];
+        if (v) values.add(v);
+      }
+      map.set(
+        field,
+        [...values].sort().map((v) => ({ id: v, label: v }))
+      );
+    }
+    return map;
+  }, [leads, nicheById, sdrById]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -119,19 +168,52 @@ export function LeadsTable({ leads, sdrById, nicheById, closerById, dealByLeadId
                 <td className={cn("px-4 py-3", CELL_DIVIDER)} onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} aria-label={`Selecionar ${lead.nome}`} />
                 </td>
-                {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={cn(
-                      "max-w-[200px] cursor-pointer truncate whitespace-nowrap px-4 py-3 text-secondary",
-                      CELL_DIVIDER,
-                      col.key === "nome" && "font-medium text-primary"
-                    )}
-                    onClick={() => onRowClick(lead)}
-                  >
-                    {renderColumnCell(col.key, lead, ctx)}
-                  </td>
-                ))}
+                {columns.map((col) => {
+                  const edit = COLUMN_EDIT[col.key];
+                  const cellContent = renderColumnCell(col.key, lead, ctx);
+
+                  if (edit) {
+                    // No onClick here — EditableCell owns its own
+                    // double-click (text/number) or single-click
+                    // (select/combobox) interaction, and no `truncate`
+                    // (its overflow:hidden would clip the dropdown
+                    // popover); truncation for the closed-state display
+                    // happens inside EditableCell instead.
+                    return (
+                      <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
+                        <EditableCell
+                          kind={edit.kind}
+                          value={String(lead[edit.field] ?? "")}
+                          display={cellContent}
+                          options={editOptions.get(col.key)}
+                          onSave={(v) => onFieldSave(lead.id, edit.field, v)}
+                          onCreateOption={
+                            col.key === "nicho"
+                              ? async (label) => {
+                                  const niche = await onCreateNiche(label);
+                                  return { id: niche.id, label: niche.nome };
+                                }
+                              : undefined
+                          }
+                        />
+                      </td>
+                    );
+                  }
+
+                  return (
+                    <td
+                      key={col.key}
+                      className={cn(
+                        "max-w-[200px] cursor-pointer truncate whitespace-nowrap px-4 py-3 text-secondary",
+                        CELL_DIVIDER,
+                        col.key === "nome" && "font-medium text-primary"
+                      )}
+                      onClick={() => onRowClick(lead)}
+                    >
+                      {cellContent}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
             {filtered.length === 0 && (

@@ -108,7 +108,7 @@ export function CrmWorkspace({
   deals,
   dealsForLeads,
   dealLeadRefs,
-  niches,
+  niches: initialNiches,
   sdrs,
   closers,
   sdrReasons,
@@ -123,6 +123,12 @@ export function CrmWorkspace({
   currentUserName,
   attributions,
 }: CrmWorkspaceProps) {
+  // Lifted to state (not just the prop) so a niche created from the leads
+  // table's inline "Nicho" combobox (editable-cell.tsx) shows up
+  // immediately in every mounted board's dropdown — Quadro principal/
+  // Orgânico/Tráfego/Kanban are separate LeadsBoard instances that all
+  // read from this one list.
+  const [niches, setNiches] = useState(initialNiches);
   const [activeSection, setActiveSection] = useState("crm");
   const [activeView, setActiveView] = useState("quadro_principal");
   const [kanbanSubView, setKanbanSubView] = useState<KanbanSubView>("leads");
@@ -169,6 +175,14 @@ export function CrmWorkspace({
     setKanbanSubView(view);
     setVisitedKanbanSubViews((prev) =>
       prev.has(view) ? prev : new Set(prev).add(view),
+    );
+  }
+
+  function handleNicheCreated(niche: { id: string; nome: string }) {
+    setNiches((prev) =>
+      prev.some((n) => n.id === niche.id)
+        ? prev
+        : [...prev, niche].sort((a, b) => a.nome.localeCompare(b.nome)),
     );
   }
 
@@ -251,6 +265,7 @@ export function CrmWorkspace({
                     deals={dealsForLeads}
                     filters={filters}
                     visibleColumns={visibleColumns}
+                    onNicheCreated={handleNicheCreated}
                   />
                 </div>
               )}
@@ -277,6 +292,7 @@ export function CrmWorkspace({
                     deals={[]}
                     filters={{ ...filters, origem_in: ORIGEM_ORGANICO }}
                     visibleColumns={visibleColumns}
+                    onNicheCreated={handleNicheCreated}
                   />
                 </div>
               )}
@@ -303,6 +319,7 @@ export function CrmWorkspace({
                     deals={[]}
                     filters={{ ...filters, origem_in: ORIGEM_TRAFEGO }}
                     visibleColumns={visibleColumns}
+                    onNicheCreated={handleNicheCreated}
                   />
                 </div>
               )}
@@ -358,6 +375,7 @@ export function CrmWorkspace({
                         deals={dealsForLeads}
                         filters={filters}
                         visibleColumns={visibleColumns}
+                        onNicheCreated={handleNicheCreated}
                       />
                     </div>
                   )}

@@ -28,6 +28,42 @@ export interface ColumnDef {
   required?: boolean;
 }
 
+// Which columns are inline-editable in the table (components/leads/
+// editable-cell.tsx), and how. Deliberately excludes: `nome` (its cell is
+// still the "open the full detail panel" click target — see
+// leads-table.tsx), `etapa` (moving to "perdido" requires a reason via
+// mark-lost-modal.tsx; a bare inline select would bypass that), everything
+// deal-derived (closer/valor/datas/modelo/janela_fechamento — a different
+// entity, edited from the Negócios side), and `criado_em` (a historical
+// business date, not something to fat-finger from a table cell).
+export type ColumnEditKind = "text" | "number" | "niche_select" | "sdr_select" | "combobox";
+
+export interface ColumnEditDef {
+  kind: ColumnEditKind;
+  /** The `leads` column this cell writes to — for "faturamento_medio" this
+   * is deliberately the *_label text field, not the numeric one: the cell
+   * displays the label preferentially (see renderColumnCell below), and in
+   * practice almost every lead has the label, not the number. */
+  field: keyof Lead;
+}
+
+export const COLUMN_EDIT: Partial<Record<string, ColumnEditDef>> = {
+  empresa: { kind: "text", field: "empresa" },
+  cargo: { kind: "text", field: "cargo" },
+  whatsapp: { kind: "text", field: "whatsapp_txt" },
+  telefone: { kind: "text", field: "telefone" },
+  email: { kind: "text", field: "email" },
+  insta: { kind: "text", field: "insta" },
+  qualificador: { kind: "text", field: "qualificador" },
+  observacao: { kind: "text", field: "observacao" },
+  faturamento_medio: { kind: "text", field: "faturamento_medio_label" },
+  nicho: { kind: "niche_select", field: "niche_id" },
+  sdr: { kind: "sdr_select", field: "owner_sdr_id" },
+  origem: { kind: "combobox", field: "origem" },
+  direcao: { kind: "combobox", field: "direcao" },
+  tipo: { kind: "combobox", field: "tipo" },
+};
+
 // The full set of fields from the original 35-column Monday export that
 // make sense as a table column (raw_monday, ids, fbclid/lead_id_ads/
 // campanha/publico/criativo stay detail-panel-only — marketing attribution

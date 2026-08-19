@@ -15,8 +15,10 @@ import {
   loadMoreLeadsAction,
   filterLeadsAction,
   sendFirstContactEmailAction,
+  updateLeadDetailsAction,
   type LeadFilters,
 } from "@/lib/actions/leads";
+import { createNicheAction } from "@/lib/actions/niches";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
 import type { Database, LeadStatus } from "@/lib/types/database.types";
 
@@ -81,6 +83,12 @@ interface LeadsBoardProps {
   /** Also owned by CrmWorkspace — the column picker button lives in the
    * workspace toolbar next to Filtros/Colunas, not inside the table. */
   visibleColumns: Set<string>;
+  /** A niche created from the table's inline "Nicho" combobox bubbles up
+   * to CrmWorkspace, which owns the `niches` list as state precisely so
+   * every mounted board (Quadro principal/Orgânico/Tráfego/Kanban all stay
+   * separate LeadsBoard instances) sees the new option immediately,
+   * without a full page reload. */
+  onNicheCreated: (niche: Niche) => void;
 }
 
 // Owns all lead state (list, qualification set, the four modals) regardless
@@ -107,6 +115,7 @@ export function LeadsBoard({
   deals: initialDeals,
   filters,
   visibleColumns,
+  onNicheCreated,
 }: LeadsBoardProps) {
   const [leads, setLeads] = useState(initialLeads);
   const [totalLeads, setTotalLeads] = useState(initialTotalLeads);
@@ -203,6 +212,31 @@ export function LeadsBoard({
     }
   }
 
+  // Inline table edits (components/leads/editable-cell.tsx) — one field at
+  // a time, same optimistic-update-then-rollback shape as handleMove/
+  // handleClaim above. Reuses updateLeadDetailsAction (the same call the
+  // full detail panel's Save button makes) rather than a dedicated action,
+  // since a single-field patch is already exactly what that action expects.
+  async function handleFieldSave(id: string, field: keyof Lead, value: string | null) {
+    const previous = leads.find((l) => l.id === id);
+    if (!previous) return;
+    const numericField = field === "faturamento_medio";
+    const patch = { [field]: numericField && value ? Number(value) : value } as Partial<Lead>;
+    updateLeadLocal(id, patch);
+    try {
+      await updateLeadDetailsAction(id, patch);
+    } catch (err) {
+      updateLeadLocal(id, { [field]: previous[field] } as Partial<Lead>);
+      setError(err instanceof Error ? err.message : "Erro ao salvar campo.");
+    }
+  }
+
+  async function handleCreateNiche(nome: string) {
+    const niche = await createNicheAction(nome);
+    onNicheCreated(niche);
+    return niche;
+  }
+
   async function handleSendFirstContactEmail(id: string) {
     setSendingEmailId(id);
     setError(null);
@@ -278,6 +312,8 @@ export function LeadsBoard({
               onRowClick={setDetailLead}
               visibleColumns={visibleColumns}
               onNewLead={() => setShowCreateLead(true)}
+              onFieldSave={handleFieldSave}
+              onCreateNiche={handleCreateNiche}
             />
           </div>
           <div className="mt-4 flex items-center justify-center gap-3">
