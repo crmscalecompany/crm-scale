@@ -35,6 +35,7 @@ export interface ColumnDef {
 // display order.
 export const ALL_COLUMNS: ColumnDef[] = [
   { key: "nome", label: "Lead", required: true },
+  { key: "etapa", label: "Etapa", required: true },
   { key: "sdr", label: "SDR" },
   { key: "empresa", label: "Empresa" },
   { key: "whatsapp", label: "WhatsApp" },
@@ -56,7 +57,6 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: "modelo", label: "Modelo" },
   { key: "janela_fechamento", label: "Janela de Fechamento" },
   { key: "observacao", label: "Observação" },
-  { key: "etapa", label: "Etapa", required: true },
 ];
 
 // Picked with the user: Contato (WhatsApp/E-mail) + Negócio (Closer/Valor/
