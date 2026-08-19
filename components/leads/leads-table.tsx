@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { ALL_COLUMNS, COLUMN_EDIT, renderColumnCell, type ColumnContext, type PersonRef } from "@/lib/leads-table-columns";
 import { EditableCell, type EditableOption } from "@/components/leads/editable-cell";
+import { LEAD_STATUS_STYLE, DEAL_STATUS_STYLE } from "@/lib/status-colors";
 import { fieldInputClass, primaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database.types";
@@ -30,7 +31,13 @@ interface LeadsTableProps {
   onCreateNiche: (nome: string) => Promise<{ id: string; nome: string }>;
 }
 
-const CELL_DIVIDER = "border-r border-hairline/30 last:border-r-0";
+// Deliberately solid, not translucent — the previous 30%/60%-opacity
+// hairline read as "barely there" against the dark canvas (explicit user
+// feedback). border-hairline-strong is the same token the rest of the app
+// already reserves for hover/focus emphasis; using it at full strength
+// here is what makes the grid read as a real, robust table instead of
+// a loose stack of rows.
+const CELL_DIVIDER = "border-r border-hairline-strong last:border-r-0";
 
 // Mirrors (and extends) the "Quadro principal" table view from the Monday
 // board. Which columns show is user-configurable
@@ -148,10 +155,13 @@ export function LeadsTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-card border border-hairline">
+      {/* Square corners + a solid (not glass) header, on purpose — this
+          table reads as data to scan, not a floating card, so it drops the
+          rounded/translucent treatment the rest of the app uses. */}
+      <div className="overflow-x-auto border-2 border-hairline-strong">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-hairline bg-bg-secondary/60 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+            <tr className="border-b-2 border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
               <th className={cn("w-10 px-4 py-3", CELL_DIVIDER)}>
                 <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} aria-label="Selecionar todos" />
               </th>
@@ -163,8 +173,24 @@ export function LeadsTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((lead) => (
-              <tr key={lead.id} className="border-b border-hairline/60 transition hover:bg-surface-1">
+            {filtered.map((lead, i) => {
+              // Same lead-vs-deal merge as the "Etapa" cell itself
+              // (renderColumnCell's "etapa" case) — a converted lead shows
+              // its deal's stage, not its own. Reused here to color the
+              // row's left edge, so the pipeline stage reads at a glance
+              // down the whole table, not just from the badge text.
+              const deal = dealByLeadId.get(lead.id);
+              const stageStyle = deal ? DEAL_STATUS_STYLE[deal.status] : LEAD_STATUS_STYLE[lead.status];
+
+              return (
+                <tr
+                  key={lead.id}
+                  className={cn(
+                    "border-b border-hairline-strong border-l-4 transition hover:bg-surface-2/70",
+                    stageStyle.accentClassName,
+                    i % 2 === 1 && "bg-surface-1/35"
+                  )}
+                >
                 <td className={cn("px-4 py-3", CELL_DIVIDER)} onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} aria-label={`Selecionar ${lead.nome}`} />
                 </td>
@@ -214,8 +240,9 @@ export function LeadsTable({
                     </td>
                   );
                 })}
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-sm text-muted">

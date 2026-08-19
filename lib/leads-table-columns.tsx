@@ -95,21 +95,14 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: "observacao", label: "Observação" },
 ];
 
-// Picked with the user: Contato (WhatsApp/E-mail) + Negócio (Closer/Valor/
-// Data de Fechamento) added to the original Monday-mirroring set.
-export const DEFAULT_VISIBLE_COLUMNS = [
-  "nome",
-  "sdr",
-  "empresa",
-  "whatsapp",
-  "email",
-  "nicho",
-  "closer",
-  "valor",
-  "data_fechamento",
-  "observacao",
-  "etapa",
-];
+// Every column, shown by default — the user asked for every lead field to
+// be visible directly in the table, not hidden behind the picker. Derived
+// from ALL_COLUMNS (not hand-listed) so a new column added there shows up
+// by default automatically instead of silently needing a second edit here.
+// Existing users who already customized visibility keep their own
+// localStorage choice (see lib/use-local-storage-set.ts) until they hit
+// "Restaurar padrão" in the column picker.
+export const DEFAULT_VISIBLE_COLUMNS = ALL_COLUMNS.map((c) => c.key);
 
 function Badge({ children, className }: { children: React.ReactNode; className: string }) {
   return <span className={cn("rounded-full px-2 py-0.5 text-xs", className)}>{children}</span>;

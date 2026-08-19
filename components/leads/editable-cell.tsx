@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { fieldInputClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
 import type { ColumnEditKind } from "@/lib/leads-table-columns";
@@ -31,14 +32,27 @@ interface EditableCellProps {
 // its own open/editing UI state; persistence (and optimistic
 // update/rollback) is the caller's job via onSave, same division of labor
 // as every other mutation in leads-board.tsx (handleMove/handleClaim).
+//
+// The select/combobox dropdown is portaled to document.body (position:
+// fixed, coordinates from getBoundingClientRect) instead of a plain
+// `absolute` child — the leads table sits inside an `overflow-x-auto`
+// wrapper (leads-table.tsx), and per the CSS overflow spec, setting only
+// overflow-x to a non-visible value makes the *other* axis compute to auto
+// too, not stay visible. That silently clipped a plain absolute popover to
+// the table's own scroll box. A portal sidesteps ancestor overflow/clipping
+// entirely — same reasoning lead-detail-panel.tsx already uses createPortal
+// for its drawer.
 export function EditableCell({ kind, value, display, options = [], onSave, onCreateOption }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const [filter, setFilter] = useState("");
   const [saving, setSaving] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
 
   // Focus/select the input once it mounts (entering edit mode) — a DOM
   // side effect, not a setState-in-effect: `draft`/`filter` are seeded
@@ -53,9 +67,16 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
   }, [editing]);
 
   useEffect(() => {
+    if (open) filterInputRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
     if (!editing && !open) return;
     function onClickOutside(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideTrigger = triggerRef.current?.contains(target);
+      const insidePopover = popoverRef.current?.contains(target);
+      if (!insideTrigger && !insidePopover) {
         setEditing(false);
         setOpen(false);
       }
@@ -73,6 +94,23 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [editing, open]);
+
+  // The table's own wrapper scrolls (both axes, see the class comment
+  // above) — rather than tracking that scroll to keep the portal glued to
+  // the cell, just close it. Simpler, and matches how most editors treat a
+  // scroll-while-a-menu-is-open as "dismiss".
+  useEffect(() => {
+    if (!open) return;
+    function close() {
+      setOpen(false);
+    }
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
 
   async function commitText() {
     setEditing(false);
@@ -116,6 +154,13 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
     }
   }
 
+  function openPopover() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setPopoverPos({ top: rect.bottom + 4, left: rect.left });
+    setFilter("");
+    setOpen(true);
+  }
+
   if (kind === "text" || kind === "number") {
     if (!editing) {
       return (
@@ -133,7 +178,7 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
       );
     }
     return (
-      <div ref={wrapRef} onClick={(e) => e.stopPropagation()}>
+      <div onClick={(e) => e.stopPropagation()}>
         <input
           ref={inputRef}
           type={kind === "number" ? "number" : "text"}
@@ -158,68 +203,72 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
   const exactMatch = options.some((o) => o.label.toLowerCase() === filter.trim().toLowerCase());
 
   return (
-    <div ref={wrapRef} className="relative" onClick={(e) => e.stopPropagation()}>
+    <div onClick={(e) => e.stopPropagation()}>
       <div
-        onClick={() => {
-          if (!open) setFilter("");
-          setOpen(!open);
-        }}
+        ref={triggerRef}
+        onClick={() => (open ? setOpen(false) : openPopover())}
         className={cn("min-h-[20px] cursor-pointer truncate whitespace-nowrap", saving && "opacity-50")}
         title="Clique para escolher"
       >
         {display}
       </div>
 
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-card border border-hairline bg-bg-secondary p-2 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
-          {kind !== "sdr_select" && (
-            <input
-              autoFocus
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && filter.trim() && !exactMatch) commitCreate();
-              }}
-              placeholder={kind === "niche_select" ? "Buscar ou criar nicho…" : "Buscar ou criar…"}
-              className={cn(fieldInputClass, "mb-2 h-8 w-full !py-1 text-sm")}
-            />
-          )}
+      {open &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            style={{ position: "fixed", top: popoverPos.top, left: popoverPos.left }}
+            className="z-[70] w-64 rounded-card border border-hairline bg-bg-secondary p-2 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+          >
+            {kind !== "sdr_select" && (
+              <input
+                ref={filterInputRef}
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && filter.trim() && !exactMatch) commitCreate();
+                }}
+                placeholder={kind === "niche_select" ? "Buscar ou criar nicho…" : "Buscar ou criar…"}
+                className={cn(fieldInputClass, "mb-2 h-8 w-full !py-1 text-sm")}
+              />
+            )}
 
-          <div className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
-            <button
-              type="button"
-              onClick={() => commitOption(null)}
-              className="rounded-md px-2 py-1.5 text-left text-sm text-muted transition hover:bg-white/5"
-            >
-              — Limpar
-            </button>
-            {filtered.map((opt) => (
+            <div className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
               <button
-                key={opt.id}
                 type="button"
-                onClick={() => commitOption(opt.id)}
-                className={cn(
-                  "truncate rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-white/5",
-                  opt.id === value ? "bg-accent-primary/15 text-accent-light" : "text-secondary"
-                )}
+                onClick={() => commitOption(null)}
+                className="rounded-md px-2 py-1.5 text-left text-sm text-muted transition hover:bg-white/5"
               >
-                {opt.label}
+                — Limpar
               </button>
-            ))}
-            {filtered.length === 0 && <p className="px-2 py-1.5 text-sm text-muted">Nada encontrado.</p>}
-          </div>
+              {filtered.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => commitOption(opt.id)}
+                  className={cn(
+                    "truncate rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-white/5",
+                    opt.id === value ? "bg-accent-primary/15 text-accent-light" : "text-secondary"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              {filtered.length === 0 && <p className="px-2 py-1.5 text-sm text-muted">Nada encontrado.</p>}
+            </div>
 
-          {kind !== "sdr_select" && filter.trim() !== "" && !exactMatch && (
-            <button
-              type="button"
-              onClick={commitCreate}
-              className="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-left text-xs font-semibold text-accent-light transition hover:bg-accent-primary/10"
-            >
-              + Criar “{filter.trim()}”
-            </button>
-          )}
-        </div>
-      )}
+            {kind !== "sdr_select" && filter.trim() !== "" && !exactMatch && (
+              <button
+                type="button"
+                onClick={commitCreate}
+                className="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-left text-xs font-semibold text-accent-light transition hover:bg-accent-primary/10"
+              >
+                + Criar “{filter.trim()}”
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
