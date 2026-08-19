@@ -29,6 +29,7 @@ export async function notifySubscribersAction(input: NotifySubscribersInput): Pr
   if (subscribers.length === 0) return { sent: 0 };
 
   const baseUrl = process.env.CRM_PUBLIC_URL ?? "https://crm.scalecompany.com.br";
+  const logoUrl = `${baseUrl}/scale-icon.png`;
 
   const items = subscribers.map((sub) => {
     const token = signUnsubscribeToken(input.tipo, sub.email);
@@ -39,8 +40,9 @@ export async function notifySubscribersAction(input: NotifySubscribersInput): Pr
       resumo: input.resumo,
       url: input.url,
       unsubscribeUrl,
+      logoUrl,
     });
-    return { to: sub.email, subject, html };
+    return { to: sub.email, subject, html, fromName: "Scale Company" };
   });
 
   await sendBatchEmails(items);
