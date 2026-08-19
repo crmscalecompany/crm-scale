@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/*
+ * Dark premium design system — ported from the Scale commercial dashboard
+ * (identidade visual "Precisão Estratégica": Azul Noite / Royal Blue /
+ * Grafite / Aço) so the CRM and dashboard read as one system. Palette +
+ * radius + transition tokens live here as the single source of truth;
+ * components consume them via Tailwind utilities (bg-canvas, text-secondary,
+ * rounded-card, etc.) instead of hardcoding hex/durations.
+ *
+ * --font-display intentionally points at Inter, not the dashboard's Canela
+ * wordmark font — Canela is a trial-licensed cut, not cleared for reuse in
+ * a second product yet. See components/scale-logo.tsx.
+ */
+@theme {
+  /* surfaces — glass: translúcidas sobre o fundo, não chapadas */
+  --color-canvas: #0b1226; /* Azul Noite — fundo principal da marca */
+  --color-bg-secondary: #141b2e; /* fundo secundário, um degrau acima do canvas */
+  --color-surface-1: rgba(35, 40, 51, 0.64); /* cards — base Grafite */
+  --color-surface-2: rgba(52, 57, 67, 0.74); /* cards em destaque — Grafite mais claro */
+  --color-hairline: #232a38; /* bordas */
+  --color-hairline-strong: #47536b; /* bordas em hover/foco — tom Aço */
+
+  /* type */
+  --color-primary: #f8fafc;
+  --color-secondary: #9aa2af; /* Aço clareado ~7.2:1 sobre o canvas */
+  --color-muted: #737e8e; /* Aço clareado ~4.5:1 sobre o canvas */
+  --color-ink-strong: #050810; /* texto escuro sobre preenchimentos vivos (badges sólidos) */
+
+  /* azul — identidade principal (Royal Blue da marca). */
+  --color-accent-primary: #114ddb;
+  --color-accent-light: #4574e3;
+  --color-accent-solid: #114ddb;
+  --color-accent-solid-hover: #3568e0;
+  --accent-primary-soft: rgba(17, 77, 219, 0.16);
+  --accent-primary-glow: rgba(17, 77, 219, 0.45);
+
+  /* status — cores realmente vivas, sempre com significado (metas, resultado, alerta) */
+  --color-status-good: #0ca30c;
+  --color-status-warning: #fab219;
+  --color-status-serious: #ec835a;
+  --color-status-critical: #d03b3b;
+  --color-status-critical-light: #f0655f;
+
+  /* pódio — cores próprias, distintas do status semântico */
+  --color-gold: #f5b301;
+  --color-gold-light: #ffd764;
+  --color-silver: #b8c4d6;
+
+  /* funil — ordinal, uma única família de azul, claro -> escuro */
+  --color-funnel-1: #86b6ef;
+  --color-funnel-2: #3987e5;
+  --color-funnel-3: #256abf;
+  --color-funnel-4: #184f95;
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-inter); /* wordmark placeholder until the Canela license question is resolved */
+
+  /* raio padrão dos cards (16–20px) */
+  --radius-card: 18px;
+  --radius-control: 10px;
+
+  /* toda utility "transition" passa a usar 200ms por padrão */
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-canvas);
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(17, 77, 219, 0.05), transparent 45%),
+    radial-gradient(circle at 88% 15%, rgba(69, 116, 227, 0.032), transparent 40%),
+    radial-gradient(circle at 30% 90%, rgba(17, 77, 219, 0.028), transparent 45%);
+  color: var(--color-primary);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-hairline-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Ambient neon blobs (app/layout.tsx) — slow, organic drift so the
+   background never feels static. Each blob uses a differently-shaped path
+   and duration so they don't move in sync. Amplitude is large (120-200px)
+   because heavy blur (120-140px) hides small translations almost entirely. */
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(160px, 90px) scale(1.15);
+  }
+  50% {
+    transform: translate(-70px, 180px) scale(0.88);
+  }
+  75% {
+    transform: translate(-150px, -60px) scale(1.08);
+  }
+}
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-180px, 120px) scale(1.2);
+  }
+  66% {
+    transform: translate(120px, -110px) scale(0.85);
+  }
+}
+@keyframes drift-c {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  30% {
+    transform: translate(130px, -140px) scale(1.12);
+  }
+  60% {
+    transform: translate(-160px, 70px) scale(0.86);
+  }
+}
+
+/* Page-entrance animation — plays once when a page's content mounts (route
+   change). Sections fade + rise in sequence; cards inside a `.stagger` row
+   cascade individually via nth-child delay, offset by `--stagger-base` so a
+   second row on the same page starts later. */
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-enter {
+  animation: enter-up 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger > * {
+  opacity: 0;
+  animation: enter-up 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 0ms);
+}
+.stagger > *:nth-child(2) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 50ms);
+}
+.stagger > *:nth-child(3) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 100ms);
+}
+.stagger > *:nth-child(4) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 150ms);
+}
+.stagger > *:nth-child(5) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 200ms);
+}
+.stagger > *:nth-child(6) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 250ms);
+}
+.stagger > *:nth-child(7) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 300ms);
+}
+.stagger > *:nth-child(8) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 350ms);
+}
+.stagger > *:nth-child(9) {
+  animation-delay: calc(var(--stagger-base, 0ms) + 400ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter,
+  .stagger > * {
+    animation: none;
+    opacity: 1;
+  }
+}
