@@ -31,12 +31,20 @@ export interface ColumnDef {
 // Which columns are inline-editable in the table (components/leads/
 // editable-cell.tsx), and how. Deliberately excludes: `nome` (its cell is
 // still the "open the full detail panel" click target — see
-// leads-table.tsx), `etapa` (moving to "perdido" requires a reason via
-// mark-lost-modal.tsx; a bare inline select would bypass that), everything
-// deal-derived (closer/valor/datas/modelo/janela_fechamento — a different
-// entity, edited from the Negócios side), and `criado_em` (a historical
-// business date, not something to fat-finger from a table cell).
-export type ColumnEditKind = "text" | "number" | "niche_select" | "sdr_select" | "combobox";
+// leads-table.tsx), everything deal-derived except `etapa` itself (closer/
+// valor/datas/modelo/janela_fechamento — a different entity, edited from
+// the Negócios side), and `criado_em` (a historical business date, not
+// something to fat-finger from a table cell).
+//
+// `etapa` is NOT listed in COLUMN_EDIT below — unlike every other column,
+// its options and the field it writes to depend on the *row* (a lead with
+// a deal edits deals.status, not leads.status — see renderColumnCell's
+// "etapa" case), which this static per-column map can't express. It's
+// special-cased directly in leads-table.tsx instead, reusing "status_select"
+// and going through the same handleMove-style perdido/fechado modal
+// branching the Kanban board already has (leads-board.tsx's
+// handleEtapaChange), so the inline picker never bypasses those rules.
+export type ColumnEditKind = "text" | "number" | "niche_select" | "sdr_select" | "combobox" | "status_select";
 
 export interface ColumnEditDef {
   kind: ColumnEditKind;

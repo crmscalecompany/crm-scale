@@ -220,7 +220,7 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
             style={{ position: "fixed", top: popoverPos.top, left: popoverPos.left }}
             className="z-[70] w-64 rounded-card border border-hairline bg-bg-secondary p-2 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
           >
-            {kind !== "sdr_select" && (
+            {kind !== "sdr_select" && kind !== "status_select" && (
               <input
                 ref={filterInputRef}
                 value={filter}
@@ -234,13 +234,17 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
             )}
 
             <div className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => commitOption(null)}
-                className="rounded-md px-2 py-1.5 text-left text-sm text-muted transition hover:bg-white/5"
-              >
-                — Limpar
-              </button>
+              {/* No "Limpar" for status_select — status is a required field,
+                  a lead/deal always has one. */}
+              {kind !== "status_select" && (
+                <button
+                  type="button"
+                  onClick={() => commitOption(null)}
+                  className="rounded-md px-2 py-1.5 text-left text-sm text-muted transition hover:bg-white/5"
+                >
+                  — Limpar
+                </button>
+              )}
               {filtered.map((opt) => (
                 <button
                   key={opt.id}
@@ -257,7 +261,7 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
               {filtered.length === 0 && <p className="px-2 py-1.5 text-sm text-muted">Nada encontrado.</p>}
             </div>
 
-            {kind !== "sdr_select" && filter.trim() !== "" && !exactMatch && (
+            {kind !== "sdr_select" && kind !== "status_select" && filter.trim() !== "" && !exactMatch && (
               <button
                 type="button"
                 onClick={commitCreate}

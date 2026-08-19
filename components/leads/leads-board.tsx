@@ -7,6 +7,7 @@ import { LeadsTable } from "@/components/leads/leads-table";
 import { LeadDetailPanel } from "@/components/leads/lead-detail-panel";
 import { CreateLeadModal } from "@/components/kanban/create-lead-modal";
 import { CreateDealModal } from "@/components/kanban/create-deal-modal";
+import { CloseDealModal } from "@/components/kanban/close-deal-modal";
 import { QualifyModal } from "@/components/kanban/qualify-modal";
 import { MarkLostModal } from "@/components/kanban/mark-lost-modal";
 import {
@@ -18,9 +19,10 @@ import {
   updateLeadDetailsAction,
   type LeadFilters,
 } from "@/lib/actions/leads";
+import { moveDealAction } from "@/lib/actions/deals";
 import { createNicheAction } from "@/lib/actions/niches";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
-import type { Database, LeadStatus } from "@/lib/types/database.types";
+import type { Database, LeadStatus, DealStatus } from "@/lib/types/database.types";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
 type LeadAttribution = Database["public"]["Tables"]["lead_attribution"]["Row"];
@@ -71,6 +73,10 @@ interface LeadsBoardProps {
   closers: Person[];
   reasons: QualificationReason[];
   lostReasons: LostReason[];
+  /** Closer-side loss reasons — needed here (not just deals-board.tsx)
+   * because Etapa's inline picker (leads-table.tsx) can mark a *deal* lost
+   * too, once a row has one. */
+  closerLostReasons: LostReason[];
   qualifiedLeadIds: string[];
   currentUserId: string | null;
   currentUserRole: string | null;
@@ -108,6 +114,7 @@ export function LeadsBoard({
   closers,
   reasons,
   lostReasons,
+  closerLostReasons,
   qualifiedLeadIds,
   currentUserId,
   currentUserRole,
@@ -126,6 +133,8 @@ export function LeadsBoard({
   const [dealModalLead, setDealModalLead] = useState<Lead | null>(null);
   const [qualifyLeadId, setQualifyLeadId] = useState<string | null>(null);
   const [lostLeadId, setLostLeadId] = useState<string | null>(null);
+  const [lostDealId, setLostDealId] = useState<string | null>(null);
+  const [closeDealId, setCloseDealId] = useState<string | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -180,6 +189,10 @@ export function LeadsBoard({
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   }
 
+  function updateDealLocal(id: string, patch: Partial<Deal>) {
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  }
+
   // Moving to "Perdido" needs a reason first (see mark-lost-modal.tsx) — the
   // status write is deferred until the modal is submitted, same rule
   // applied everywhere a lead/deal can reach "Perdido".
@@ -228,6 +241,37 @@ export function LeadsBoard({
     } catch (err) {
       updateLeadLocal(id, { [field]: previous[field] } as Partial<Lead>);
       setError(err instanceof Error ? err.message : "Erro ao salvar campo.");
+    }
+  }
+
+  // Etapa's inline picker (leads-table.tsx) — a row with no deal edits
+  // leads.status via the exact same path as the Kanban drag (handleMove
+  // above, "perdido" included). A row *with* a deal edits deals.status
+  // instead, mirroring deals-board.tsx's own handleMove: "perdido" opens
+  // MarkLostModal (entidadeTipo="deal"), "fechado" opens CloseDealModal
+  // (needs valor + vendedor, can't be a bare status write), anything else
+  // is a direct optimistic moveDealAction.
+  async function handleEtapaChange(leadId: string, dealId: string | null, newStatus: string) {
+    if (!dealId) {
+      await handleMove(leadId, newStatus);
+      return;
+    }
+    if (newStatus === "perdido") {
+      setLostDealId(dealId);
+      return;
+    }
+    if (newStatus === "fechado") {
+      setCloseDealId(dealId);
+      return;
+    }
+    const previous = deals.find((d) => d.id === dealId);
+    if (!previous) return;
+    updateDealLocal(dealId, { status: newStatus as DealStatus });
+    try {
+      await moveDealAction(dealId, newStatus as DealStatus);
+    } catch (err) {
+      updateDealLocal(dealId, { status: previous.status });
+      setError(err instanceof Error ? err.message : "Erro ao mover negócio.");
     }
   }
 
@@ -314,6 +358,7 @@ export function LeadsBoard({
               onNewLead={() => setShowCreateLead(true)}
               onFieldSave={handleFieldSave}
               onCreateNiche={handleCreateNiche}
+              onEtapaChange={handleEtapaChange}
             />
           </div>
           <div className="mt-4 flex items-center justify-center gap-3">
@@ -395,6 +440,28 @@ export function LeadsBoard({
           entidadeId={lostLeadId}
           reasons={lostReasons}
           onMarked={() => updateLeadLocal(lostLeadId, { status: "perdido" })}
+        />
+      )}
+
+      {lostDealId && (
+        <MarkLostModal
+          open={!!lostDealId}
+          onClose={() => setLostDealId(null)}
+          entidadeTipo="deal"
+          entidadeId={lostDealId}
+          reasons={closerLostReasons}
+          onMarked={() => updateDealLocal(lostDealId, { status: "perdido" })}
+        />
+      )}
+
+      {closeDealId && (
+        <CloseDealModal
+          open={!!closeDealId}
+          onClose={() => setCloseDealId(null)}
+          dealId={closeDealId}
+          closers={closers}
+          defaultVendedorId={deals.find((d) => d.id === closeDealId)?.closer_id ?? undefined}
+          onClosed={(valorBruto) => updateDealLocal(closeDealId, { status: "fechado", valor_bruto: valorBruto })}
         />
       )}
 

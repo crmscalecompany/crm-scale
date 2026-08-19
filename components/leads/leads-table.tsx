@@ -29,7 +29,16 @@ interface LeadsTableProps {
   onFieldSave: (leadId: string, field: keyof Lead, value: string | null) => Promise<void>;
   /** "Criar novo nicho" from the inline Nicho combobox. */
   onCreateNiche: (nome: string) => Promise<{ id: string; nome: string }>;
+  /** Etapa's inline picker — `dealId` is null when the row has no deal yet
+   * (editing leads.status), set when it does (editing deals.status). Owned
+   * by leads-board.tsx since "perdido"/"fechado" open a modal instead of
+   * saving directly, same branching handleMove already does for the
+   * Kanban view. */
+  onEtapaChange: (leadId: string, dealId: string | null, newStatus: string) => Promise<void>;
 }
+
+const LEAD_STATUS_OPTIONS = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"] as const;
+const DEAL_STATUS_OPTIONS = ["em_negociacao", "proposta_enviada", "follow_up", "fechado", "perdido"] as const;
 
 // Deliberately solid, not translucent — the previous 30%/60%-opacity
 // hairline read as "barely there" against the dark canvas (explicit user
@@ -75,6 +84,7 @@ export function LeadsTable({
   onNewLead,
   onFieldSave,
   onCreateNiche,
+  onEtapaChange,
 }: LeadsTableProps) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -198,9 +208,33 @@ export function LeadsTable({
                   <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} aria-label={`Selecionar ${lead.nome}`} />
                 </td>
                 {columns.map((col) => {
-                  const edit = COLUMN_EDIT[col.key];
                   const cellContent = renderColumnCell(col.key, lead, ctx);
 
+                  if (col.key === "etapa") {
+                    // Row-dependent, not column-dependent (see COLUMN_EDIT's
+                    // comment in leads-table-columns.tsx) — a deal existing
+                    // for this lead means Etapa edits deals.status, with
+                    // deal-flavored options; otherwise it edits leads.status.
+                    const isDeal = !!deal;
+                    const etapaOptions = isDeal
+                      ? DEAL_STATUS_OPTIONS.map((s) => ({ id: s, label: DEAL_STATUS_STYLE[s].label }))
+                      : LEAD_STATUS_OPTIONS.map((s) => ({ id: s, label: LEAD_STATUS_STYLE[s].label }));
+                    const etapaValue = isDeal ? deal.status : lead.status;
+
+                    return (
+                      <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
+                        <EditableCell
+                          kind="status_select"
+                          value={etapaValue}
+                          display={cellContent}
+                          options={etapaOptions}
+                          onSave={(v) => onEtapaChange(lead.id, deal?.id ?? null, v as string)}
+                        />
+                      </td>
+                    );
+                  }
+
+                  const edit = COLUMN_EDIT[col.key];
                   if (edit) {
                     // No onClick here — EditableCell owns its own
                     // double-click (text/number) or single-click

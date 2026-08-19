@@ -258,6 +258,7 @@ export function CrmWorkspace({
                     closers={closers}
                     reasons={sdrReasons}
                     lostReasons={sdrLostReasons}
+                    closerLostReasons={closerLostReasons}
                     qualifiedLeadIds={qualifiedLeadIds}
                     currentUserId={currentUserId}
                     currentUserRole={currentUserRole}
@@ -285,6 +286,7 @@ export function CrmWorkspace({
                     closers={closers}
                     reasons={sdrReasons}
                     lostReasons={sdrLostReasons}
+                    closerLostReasons={closerLostReasons}
                     qualifiedLeadIds={[]}
                     currentUserId={currentUserId}
                     currentUserRole={currentUserRole}
@@ -312,6 +314,7 @@ export function CrmWorkspace({
                     closers={closers}
                     reasons={sdrReasons}
                     lostReasons={sdrLostReasons}
+                    closerLostReasons={closerLostReasons}
                     qualifiedLeadIds={[]}
                     currentUserId={currentUserId}
                     currentUserRole={currentUserRole}
@@ -368,6 +371,7 @@ export function CrmWorkspace({
                         closers={closers}
                         reasons={sdrReasons}
                         lostReasons={sdrLostReasons}
+                        closerLostReasons={closerLostReasons}
                         qualifiedLeadIds={qualifiedLeadIds}
                         currentUserId={currentUserId}
                         currentUserRole={currentUserRole}
