@@ -14,7 +14,13 @@ interface StatusStyle {
 }
 
 export const LEAD_STATUS_STYLE: Record<LeadStatus, StatusStyle> = {
-  novo: { label: "Novo", className: "bg-surface-2 text-secondary", accentClassName: "border-l-hairline-strong" },
+  // Solid fill (not the translucent bg-status-good/20 every other badge
+  // uses) — "Novo" is the one status that needs SDR action, so it gets the
+  // boldest treatment on purpose, per explicit user feedback ("cinza não
+  // chama atenção, queria algo tipo verde"). Same green family as
+  // "Convertido" below (both are "good news"), but solid vs. soft keeps
+  // them visually distinct instead of identical badges.
+  novo: { label: "Novo", className: "bg-status-good text-ink-strong", accentClassName: "border-l-status-good" },
   em_atendimento: {
     label: "Em Atendimento",
     className: "bg-accent-primary/20 text-accent-light",

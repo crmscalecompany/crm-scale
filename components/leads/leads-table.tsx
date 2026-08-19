@@ -155,10 +155,13 @@ export function LeadsTable({
         </div>
       </div>
 
-      {/* Square corners + a solid (not glass) header, on purpose — this
-          table reads as data to scan, not a floating card, so it drops the
-          rounded/translucent treatment the rest of the app uses. */}
-      <div className="overflow-x-auto border-2 border-hairline-strong">
+      {/* rounded-lg (8px), not rounded-card (18px) — matches
+          commission-rules-panel.tsx's table, which already uses the same
+          smaller radius. A full 0px square clashed with the rest of the
+          UI (sidebar/buttons/tabs are all rounded); this reads as
+          structured/sturdy without looking like a stray rectangle. Header
+          is solid (not glass/translucent) on purpose, same reasoning. */}
+      <div className="overflow-x-auto rounded-lg border-2 border-hairline-strong">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b-2 border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
