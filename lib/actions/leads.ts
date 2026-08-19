@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createLead, updateLead, getLead, listLeads, type LeadCursor } from "@/lib/data/leads";
+import { createLead, updateLead, getLead, listLeads, softDeleteLead, restoreLead, listDeletedLeads, type LeadCursor } from "@/lib/data/leads";
 import { listDealsByLeadIds } from "@/lib/data/deals";
 import { listAttributionByLeadIds } from "@/lib/data/lead-attribution";
 import { listQualificationsFor } from "@/lib/data/qualifications";
+import { getCurrentUserProfile, listUsersByIds } from "@/lib/data/users";
 import { monthDateRange } from "@/lib/format";
 import { sendBatchEmails } from "@/lib/adapters/resend";
 import { renderPrimeiroContatoEmail } from "@/lib/email-templates/primeiro-contato";
@@ -79,6 +80,48 @@ export async function markLeadLostAction(id: string, motivoId: string) {
   const lead = await updateLead(db, id, { status: "perdido", motivo_perda_id: motivoId });
   revalidatePath("/crm");
   return lead;
+}
+
+// "Excluir" (lead detail panel) / "Lixeira" (Automações section). Soft
+// delete, not a real DELETE — matches the leads_delete RLS policy already
+// being admin-only, enforced here explicitly since the *soft* delete is
+// actually an UPDATE, which the owning SDR's leads_update RLS policy would
+// otherwise allow.
+export async function deleteLeadAction(id: string): Promise<void> {
+  const db = await createClient();
+  const {
+    data: { user },
+  } = await db.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  const profile = await getCurrentUserProfile(db);
+  if (profile?.papel !== "admin") throw new Error("Apenas administradores podem excluir leads.");
+
+  await softDeleteLead(db, id, user.id);
+  revalidatePath("/crm");
+}
+
+export async function restoreLeadAction(id: string) {
+  const db = await createClient();
+  const profile = await getCurrentUserProfile(db);
+  if (profile?.papel !== "admin") throw new Error("Apenas administradores podem restaurar leads.");
+
+  const lead = await restoreLead(db, id);
+  revalidatePath("/crm");
+  return lead;
+}
+
+// Backs the Lixeira view — leads + the display name of whoever deleted each
+// one, resolved in one batched lookup rather than a query per row.
+export async function fetchTrashAction() {
+  const db = await createClient();
+  const profile = await getCurrentUserProfile(db);
+  if (profile?.papel !== "admin") throw new Error("Apenas administradores podem ver a lixeira.");
+
+  const leads = await listDeletedLeads(db);
+  const deletedByIds = [...new Set(leads.map((l) => l.deleted_by).filter((id): id is string => !!id))];
+  const users = await listUsersByIds(db, deletedByIds);
+  return { leads, users };
 }
 
 // "Enviar e-mail de primeiro contato" — a fixed company template (see

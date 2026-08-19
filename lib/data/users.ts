@@ -27,6 +27,16 @@ export async function listUsersByRole(db: Client, papel: UserRole) {
   return data ?? [];
 }
 
+// Batched lookup — resolves a set of user ids (e.g. leads.deleted_by in the
+// Lixeira view) to display names with one query, same pattern as
+// lib/data/leads.ts's listLeadsByIds.
+export async function listUsersByIds(db: Client, ids: string[]) {
+  if (ids.length === 0) return [];
+  const { data, error } = await db.from("users").select("id, nome").in("id", ids);
+  if (error) throw error;
+  return data ?? [];
+}
+
 // public.users has no email column (see Week 1 notes) — it lives on
 // auth.users, only reachable via the admin API. Used to resolve a closer's
 // email as a Google Calendar attendee when booking a meeting.

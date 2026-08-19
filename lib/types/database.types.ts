@@ -467,6 +467,8 @@ export type Database = {
         Row: {
           cargo: string | null
           criado_em: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           direcao: string | null
           email: string | null
           email_opt_out: boolean
@@ -493,6 +495,8 @@ export type Database = {
         Insert: {
           cargo?: string | null
           criado_em?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           direcao?: string | null
           email?: string | null
           email_opt_out?: boolean
@@ -519,6 +523,8 @@ export type Database = {
         Update: {
           cargo?: string | null
           criado_em?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           direcao?: string | null
           email?: string | null
           email_opt_out?: boolean
@@ -543,6 +549,13 @@ export type Database = {
           whatsapp_txt?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_motivo_perda_id_fkey"
             columns: ["motivo_perda_id"]

@@ -370,8 +370,13 @@ export function LeadsBoard({
         closer={detailDeal?.closer_id ? (closerById.get(detailDeal.closer_id) ?? null) : null}
         niches={niches}
         sdrs={sdrs}
+        currentUserRole={currentUserRole}
         onClose={() => setDetailLead(null)}
         onSaved={(lead) => updateLeadLocal(lead.id, lead)}
+        onDeleted={(id) => {
+          setLeads((prev) => prev.filter((l) => l.id !== id));
+          setTotalLeads((prev) => Math.max(0, prev - 1));
+        }}
       />
     </div>
   );

@@ -61,6 +61,11 @@ export async function listLeads(db: Client, params: ListLeadsParams) {
   let query = db
     .from("leads")
     .select("*", { count: "exact" })
+    // Every normal listing excludes soft-deleted leads (see softDeleteLead
+    // below) — the trash view uses the separate listDeletedLeads query
+    // instead of a flag here, since "show me the trash" and "show me leads"
+    // never need to blend into one result set.
+    .is("deleted_at", null)
     .order("criado_em", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
 
@@ -154,6 +159,33 @@ export async function createLead(db: Client, input: LeadInsert) {
   });
 
   return data;
+}
+
+// "Lixeira" — soft delete, not a real DELETE (matches the leads_delete RLS
+// policy already being admin-only: the row stays, just hidden from every
+// listLeads() query above until restored). deletedBy is the acting admin's
+// user id, for the "excluído por" column in the trash UI.
+export async function softDeleteLead(db: Client, id: string, deletedBy: string) {
+  const { data, error } = await db
+    .from("leads")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: deletedBy })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function restoreLead(db: Client, id: string) {
+  const { data, error } = await db.from("leads").update({ deleted_at: null, deleted_by: null }).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listDeletedLeads(db: Client) {
+  const { data, error } = await db.from("leads").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function updateLead(db: Client, id: string, input: LeadUpdate) {

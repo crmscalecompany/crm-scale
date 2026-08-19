@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, Megaphone, Phone, Sprout, Table2, Target } from "lucide-react";
+import { LayoutGrid, Megaphone, Phone, Sprout, Table2, Target, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CrmViewDef {
@@ -35,6 +35,7 @@ export const CRM_VIEWS: CrmViewDef[] = [
   { key: "kanban", label: "Kanban", icon: LayoutGrid, enabled: true },
   { key: "sdrs", label: "SDR's", icon: Phone, enabled: true },
   { key: "closers", label: "Closer's", icon: Target, enabled: true },
+  { key: "lixeira", label: "Lixeira", icon: Trash2, enabled: true },
 ];
 
 interface CrmViewTabsProps {

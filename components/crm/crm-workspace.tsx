@@ -14,6 +14,7 @@ import { SdrPipelineBoard } from "@/components/leads/sdr-pipeline-board";
 import { CloserPipelineBoard } from "@/components/deals/closer-pipeline-board";
 import { CommissionsView } from "@/components/commissions/commissions-view";
 import { NotifySubscribersView } from "@/components/automations/notify-subscribers-view";
+import { LeadsTrash } from "@/components/leads/leads-trash";
 import type { LeadFilters } from "@/lib/actions/leads";
 import { DEFAULT_VISIBLE_COLUMNS } from "@/lib/leads-table-columns";
 import { useLocalStorageSet } from "@/lib/use-local-storage-set";
@@ -404,6 +405,12 @@ export function CrmWorkspace({
                     reasons={closerReasons}
                     lostReasons={closerLostReasons}
                   />
+                </div>
+              )}
+
+              {visitedViews.has("lixeira") && (
+                <div className={activeView === "lixeira" ? undefined : "hidden"}>
+                  <LeadsTrash currentUserRole={currentUserRole} />
                 </div>
               )}
             </>

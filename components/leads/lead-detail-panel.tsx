@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { fieldLabelClass, fieldInputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
 import { formatDateTimeBR } from "@/lib/format";
-import { updateLeadDetailsAction } from "@/lib/actions/leads";
+import { updateLeadDetailsAction, deleteLeadAction } from "@/lib/actions/leads";
 import { LEAD_STATUS_STYLE, DEAL_STATUS_STYLE } from "@/lib/status-colors";
 import { PersonInline } from "@/components/ui/avatar";
 import type { PersonRef } from "@/lib/leads-table-columns";
@@ -31,8 +31,12 @@ interface LeadDetailPanelProps {
   closer: PersonRef | null;
   niches: Niche[];
   sdrs: Person[];
+  currentUserRole: string | null;
   onClose: () => void;
   onSaved: (lead: Lead) => void;
+  /** Called after a successful excluir — the parent (LeadsBoard) drops the
+   * lead from its local list; this panel just closes itself. */
+  onDeleted: (id: string) => void;
 }
 
 const LEAD_STATUS_OPTIONS: LeadStatus[] = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"];
@@ -49,10 +53,12 @@ const LEAD_STATUS_OPTIONS: LeadStatus[] = ["novo", "em_atendimento", "follow_up"
 // what lets `useState(lead)` initialize fresh per-lead without a
 // prop-to-state sync effect (an anti-pattern: see
 // react-hooks/set-state-in-effect).
-export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs, onClose, onSaved }: LeadDetailPanelProps) {
+export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs, currentUserRole, onClose, onSaved, onDeleted }: LeadDetailPanelProps) {
   const [form, setForm] = useState(lead);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -98,6 +104,21 @@ export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs,
         setError(err instanceof Error ? err.message : "Erro ao salvar.");
       }
     });
+  }
+
+  async function handleDelete() {
+    if (!form) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteLeadAction(form.id);
+      onDeleted(form.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir.");
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
   }
 
   return createPortal(
@@ -329,13 +350,46 @@ export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs,
 
         {error && <p className="mt-4 text-sm text-status-critical">{error}</p>}
 
-        <div className="mt-6 flex justify-end gap-2 border-t border-hairline pt-4">
-          <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            Fechar
-          </button>
-          <button type="button" onClick={handleSave} disabled={pending} className={primaryButtonClass}>
-            {pending ? "Salvando…" : "Salvar"}
-          </button>
+        <div className="mt-6 flex items-center justify-between gap-2 border-t border-hairline pt-4">
+          {currentUserRole === "admin" ? (
+            confirmingDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-status-critical">Excluir este lead?</span>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded-lg border border-status-critical/50 px-3 py-2 text-xs font-semibold text-status-critical transition hover:bg-status-critical/10 disabled:opacity-60"
+                >
+                  {deleting ? "Excluindo…" : "Sim, excluir"}
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs text-muted hover:text-primary">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted transition hover:text-status-critical"
+                title="Excluir lead (vai para a lixeira)"
+              >
+                <Trash2 size={14} />
+                Excluir
+              </button>
+            )
+          ) : (
+            <span />
+          )}
+
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className={secondaryButtonClass}>
+              Fechar
+            </button>
+            <button type="button" onClick={handleSave} disabled={pending} className={primaryButtonClass}>
+              {pending ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
         </div>
       </div>
     </div>,
