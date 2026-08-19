@@ -20,7 +20,7 @@ interface GroupedTableProps<T extends { id: string; status: string }> {
   renderRow: (item: T) => React.ReactNode;
 }
 
-function CollapsibleSection({ label, count, children }: { label: string; count: number; children: React.ReactNode }) {
+export function CollapsibleSection({ label, count, children }: { label: string; count: number; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
     <div className="overflow-hidden rounded-card border border-hairline">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LayoutGrid, Table2 } from "lucide-react";
+import { LayoutGrid, Layers, Table2 } from "lucide-react";
 import { KanbanBoard, type KanbanColumnDef } from "@/components/kanban/kanban-board";
 import { LeadCard } from "@/components/kanban/lead-card";
 import { LeadsTable } from "@/components/leads/leads-table";
@@ -18,6 +18,7 @@ import {
   filterLeadsAction,
   sendFirstContactEmailAction,
   updateLeadDetailsAction,
+  bulkDeleteLeadsAction,
   type LeadFilters,
 } from "@/lib/actions/leads";
 import { moveDealAction } from "@/lib/actions/deals";
@@ -128,7 +129,7 @@ export function LeadsBoard({
   visibleColumns,
   onNicheCreated,
 }: LeadsBoardProps) {
-  const [view, setView] = useState<"table" | "kanban">("table");
+  const [view, setView] = useState<"table" | "grouped" | "kanban">("table");
   const [leads, setLeads] = useState(initialLeads);
   const [totalLeads, setTotalLeads] = useState(initialTotalLeads);
   const [deals, setDeals] = useState(initialDeals);
@@ -280,6 +281,22 @@ export function LeadsBoard({
     }
   }
 
+  // "Excluir selecionados" (leads-table.tsx's row checkboxes). Doesn't
+  // optimistically update-then-rollback like the single-field edits above —
+  // a batch of N leads failing partway through is rare enough, and the
+  // "did it work" signal (leads disappearing from the list) only needs to
+  // land once the server confirms, not before.
+  async function handleBulkDelete(ids: string[]) {
+    try {
+      await bulkDeleteLeadsAction(ids);
+      const idSet = new Set(ids);
+      setLeads((prev) => prev.filter((l) => !idSet.has(l.id)));
+      setTotalLeads((prev) => Math.max(0, prev - ids.length));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir leads.");
+    }
+  }
+
   async function handleCreateNiche(nome: string) {
     const niche = await createNicheAction(nome);
     onNicheCreated(niche);
@@ -356,6 +373,17 @@ export function LeadsBoard({
           </button>
           <button
             type="button"
+            onClick={() => setView("grouped")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
+              view === "grouped" ? "bg-accent-primary/20 text-primary" : "text-secondary"
+            )}
+          >
+            <Layers size={14} />
+            Agrupado
+          </button>
+          <button
+            type="button"
             onClick={() => setView("kanban")}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
@@ -374,7 +402,7 @@ export function LeadsBoard({
         )}
       </div>
 
-      {view === "table" ? (
+      {view !== "kanban" ? (
         <>
           <div className={filtering ? "opacity-50 transition-opacity" : "transition-opacity"}>
             <LeadsTable
@@ -386,6 +414,9 @@ export function LeadsBoard({
               onRowClick={setDetailLead}
               visibleColumns={visibleColumns}
               onNewLead={() => setShowCreateLead(true)}
+              grouped={view === "grouped"}
+              currentUserRole={currentUserRole}
+              onBulkDelete={handleBulkDelete}
               onFieldSave={handleFieldSave}
               onCreateNiche={handleCreateNiche}
               onEtapaChange={handleEtapaChange}

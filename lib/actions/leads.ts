@@ -101,6 +101,27 @@ export async function deleteLeadAction(id: string): Promise<void> {
   revalidatePath("/crm");
 }
 
+// "Excluir selecionados" (leads-table.tsx's row checkboxes) — one admin
+// check + one round-trip for the whole batch, instead of the client calling
+// deleteLeadAction once per id. Still N individual soft-delete UPDATEs
+// under the hood (lib/data/leads.ts has no batch UPDATE helper), but that's
+// an implementation detail the caller doesn't need to care about.
+export async function bulkDeleteLeadsAction(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+
+  const db = await createClient();
+  const {
+    data: { user },
+  } = await db.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  const profile = await getCurrentUserProfile(db);
+  if (profile?.papel !== "admin") throw new Error("Apenas administradores podem excluir leads.");
+
+  await Promise.all(ids.map((id) => softDeleteLead(db, id, user.id)));
+  revalidatePath("/crm");
+}
+
 export async function restoreLeadAction(id: string) {
   const db = await createClient();
   const profile = await getCurrentUserProfile(db);

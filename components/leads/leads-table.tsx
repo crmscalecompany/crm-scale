@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { ALL_COLUMNS, COLUMN_EDIT, renderColumnCell, type ColumnContext, type PersonRef } from "@/lib/leads-table-columns";
 import { EditableCell, type EditableOption } from "@/components/leads/editable-cell";
+import { CollapsibleSection } from "@/components/kanban/grouped-table";
 import { LEAD_STATUS_STYLE, DEAL_STATUS_STYLE } from "@/lib/status-colors";
 import { fieldInputClass, primaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,21 @@ interface LeadsTableProps {
   onRowClick: (lead: Lead) => void;
   visibleColumns: Set<string>;
   onNewLead: () => void;
+  /** "Agrupado" mode (leads-board.tsx's third view toggle) — collapsible
+   * sections by lead.status, same grouping the SDR pipeline's own Tabela
+   * view already uses (components/kanban/grouped-table.tsx), just with
+   * this table's full column set/inline editing instead of that board's
+   * simplified Lead/Empresa/Nicho/SDR/Ações row. No row-selection/bulk
+   * delete in this mode — tracking a selection set consistently across
+   * collapsible sections is more machinery than the feature's worth right
+   * now, and it's still available from the flat Tabela view. */
+  grouped?: boolean;
+  currentUserRole: string | null;
+  /** "Excluir selecionados" (row checkboxes) — admin-only, same rule as the
+   * detail panel's single-lead Excluir. Resolves once the batch finishes;
+   * the caller (leads-board.tsx) drops the ids from its `leads` state, this
+   * component just clears its own `selected` set. */
+  onBulkDelete: (ids: string[]) => Promise<void>;
   /** Inline cell editing (double-click text fields, single-click
    * selects/combos — see components/leads/editable-cell.tsx). Persists via
    * the same updateLeadDetailsAction the detail panel uses; the parent
@@ -39,6 +55,7 @@ interface LeadsTableProps {
 
 const LEAD_STATUS_OPTIONS = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"] as const;
 const DEAL_STATUS_OPTIONS = ["em_negociacao", "proposta_enviada", "follow_up", "fechado", "perdido"] as const;
+const LEAD_GROUPS = LEAD_STATUS_OPTIONS.map((s) => ({ key: s, label: LEAD_STATUS_STYLE[s].label }));
 
 // Deliberately solid, not translucent — the previous 30%/60%-opacity
 // hairline read as "barely there" against the dark canvas (explicit user
@@ -69,8 +86,9 @@ const CELL_DIVIDER = "border-r border-hairline-strong last:border-r-0";
 // deal shows the deal's status/colors; otherwise it shows the lead's own
 // status. Same idea for Closer/Valor/Datas — blank until a deal exists.
 //
-// Row selection (checkboxes) is UI-only for now — no bulk action wired up
-// yet, just the selected-count affordance.
+// Row selection (checkboxes) backs one bulk action — "Excluir
+// selecionados" (admin-only, same inline-confirm pattern as the detail
+// panel's single-lead Excluir).
 const COMBOBOX_FIELDS = ["origem", "direcao", "tipo"] as const;
 
 export function LeadsTable({
@@ -82,12 +100,17 @@ export function LeadsTable({
   onRowClick,
   visibleColumns,
   onNewLead,
+  grouped = false,
+  currentUserRole,
+  onBulkDelete,
   onFieldSave,
   onCreateNiche,
   onEtapaChange,
 }: LeadsTableProps) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const columns = useMemo(() => ALL_COLUMNS.filter((c) => c.required || visibleColumns.has(c.key)), [visibleColumns]);
   const ctx: ColumnContext = { sdrById, nicheById, closerById, dealByLeadId };
@@ -140,6 +163,117 @@ export function LeadsTable({
     });
   }
 
+  async function handleBulkDelete() {
+    setBulkDeleting(true);
+    try {
+      await onBulkDelete([...selected]);
+      setSelected(new Set());
+      setConfirmingBulkDelete(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  // Shared between the flat table and each "Agrupado" section — `index`
+  // only drives zebra striping (meaningless/omitted in grouped mode, where
+  // every row in a section already shares one status's accent color) and
+  // `showCheckbox` is false in grouped mode (see the `grouped` prop doc).
+  function renderRow(lead: Lead, index: number, showCheckbox: boolean) {
+    // Same lead-vs-deal merge as the "Etapa" cell itself (renderColumnCell's
+    // "etapa" case) — a converted lead shows its deal's stage, not its own.
+    // Reused here to color the row's left edge, so the pipeline stage reads
+    // at a glance down the whole table, not just from the badge text.
+    const deal = dealByLeadId.get(lead.id);
+    const stageStyle = deal ? DEAL_STATUS_STYLE[deal.status] : LEAD_STATUS_STYLE[lead.status];
+
+    return (
+      <tr
+        key={lead.id}
+        className={cn(
+          "border-b border-hairline-strong border-l-4 transition hover:bg-surface-2/70",
+          stageStyle.accentClassName,
+          index % 2 === 1 && "bg-surface-1/35"
+        )}
+      >
+        {showCheckbox && (
+          <td className={cn("px-4 py-3", CELL_DIVIDER)} onClick={(e) => e.stopPropagation()}>
+            <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} aria-label={`Selecionar ${lead.nome}`} />
+          </td>
+        )}
+        {columns.map((col) => {
+          const cellContent = renderColumnCell(col.key, lead, ctx);
+
+          if (col.key === "etapa") {
+            // Row-dependent, not column-dependent (see COLUMN_EDIT's
+            // comment in leads-table-columns.tsx) — a deal existing
+            // for this lead means Etapa edits deals.status, with
+            // deal-flavored options; otherwise it edits leads.status.
+            const isDeal = !!deal;
+            const etapaOptions = isDeal
+              ? DEAL_STATUS_OPTIONS.map((s) => ({ id: s, label: DEAL_STATUS_STYLE[s].label }))
+              : LEAD_STATUS_OPTIONS.map((s) => ({ id: s, label: LEAD_STATUS_STYLE[s].label }));
+            const etapaValue = isDeal ? deal.status : lead.status;
+
+            return (
+              <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
+                <EditableCell
+                  kind="status_select"
+                  value={etapaValue}
+                  display={cellContent}
+                  options={etapaOptions}
+                  onSave={(v) => onEtapaChange(lead.id, deal?.id ?? null, v as string)}
+                />
+              </td>
+            );
+          }
+
+          const edit = COLUMN_EDIT[col.key];
+          if (edit) {
+            // No onClick here — EditableCell owns its own
+            // double-click (text/number) or single-click
+            // (select/combobox) interaction, and no `truncate`
+            // (its overflow:hidden would clip the dropdown
+            // popover); truncation for the closed-state display
+            // happens inside EditableCell instead.
+            return (
+              <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
+                <EditableCell
+                  kind={edit.kind}
+                  value={String(lead[edit.field] ?? "")}
+                  display={cellContent}
+                  options={editOptions.get(col.key)}
+                  onSave={(v) => onFieldSave(lead.id, edit.field, v)}
+                  onCreateOption={
+                    col.key === "nicho"
+                      ? async (label) => {
+                          const niche = await onCreateNiche(label);
+                          return { id: niche.id, label: niche.nome };
+                        }
+                      : undefined
+                  }
+                />
+              </td>
+            );
+          }
+
+          return (
+            <td
+              key={col.key}
+              className={cn(
+                "max-w-[200px] cursor-pointer truncate whitespace-nowrap px-4 py-3 text-secondary",
+                CELL_DIVIDER,
+                col.key === "nome" && "font-medium text-primary"
+              )}
+              onClick={() => onRowClick(lead)}
+            >
+              {cellContent}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -152,10 +286,38 @@ export function LeadsTable({
             className={cn(fieldInputClass, "w-full pl-8")}
           />
         </div>
-        {selected.size > 0 && (
-          <span className="rounded-full bg-accent-primary/15 px-3 py-1 text-xs font-medium text-accent-light">
-            {selected.size} selecionado{selected.size > 1 ? "s" : ""}
-          </span>
+        {!grouped && selected.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-accent-primary/15 px-3 py-1 text-xs font-medium text-accent-light">
+              {selected.size} selecionado{selected.size > 1 ? "s" : ""}
+            </span>
+            {currentUserRole === "admin" &&
+              (confirmingBulkDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-status-critical">Excluir {selected.size} lead(s)?</span>
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleting}
+                    className="rounded-lg border border-status-critical/50 px-3 py-1.5 text-xs font-semibold text-status-critical transition hover:bg-status-critical/10 disabled:opacity-60"
+                  >
+                    {bulkDeleting ? "Excluindo…" : "Sim, excluir"}
+                  </button>
+                  <button type="button" onClick={() => setConfirmingBulkDelete(false)} className="text-xs text-muted hover:text-primary">
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingBulkDelete(true)}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs text-muted transition hover:text-status-critical"
+                >
+                  <Trash2 size={13} />
+                  Excluir selecionados
+                </button>
+              ))}
+          </div>
         )}
         <div className="ml-auto">
           <button type="button" onClick={onNewLead} className={cn(primaryButtonClass, "flex items-center gap-1.5")}>
@@ -165,131 +327,68 @@ export function LeadsTable({
         </div>
       </div>
 
-      {/* rounded-lg (8px), not rounded-card (18px) — matches
-          commission-rules-panel.tsx's table, which already uses the same
-          smaller radius. A full 0px square clashed with the rest of the
-          UI (sidebar/buttons/tabs are all rounded); this reads as
-          structured/sturdy without looking like a stray rectangle. Header
-          is solid (not glass/translucent) on purpose, same reasoning. */}
-      <div className="overflow-x-auto rounded-lg border-2 border-hairline-strong">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b-2 border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
-              <th className={cn("w-10 px-4 py-3", CELL_DIVIDER)}>
-                <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} aria-label="Selecionar todos" />
-              </th>
-              {columns.map((col) => (
-                <th key={col.key} className={cn("max-w-[200px] truncate whitespace-nowrap px-4 py-3", CELL_DIVIDER)}>
-                  {col.label}
+      {grouped ? (
+        <div className="flex flex-col gap-3">
+          {LEAD_GROUPS.map((group) => {
+            const groupLeads = filtered.filter((l) => l.status === group.key);
+            return (
+              <CollapsibleSection key={group.key} label={group.label} count={groupLeads.length}>
+                {groupLeads.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-muted">Nenhum lead.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
+                          {columns.map((col) => (
+                            <th key={col.key} className={cn("max-w-[200px] truncate whitespace-nowrap px-4 py-3", CELL_DIVIDER)}>
+                              {col.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>{groupLeads.map((lead, i) => renderRow(lead, i, false))}</tbody>
+                    </table>
+                  </div>
+                )}
+              </CollapsibleSection>
+            );
+          })}
+        </div>
+      ) : (
+        /* rounded-lg (8px), not rounded-card (18px) — matches
+           commission-rules-panel.tsx's table, which already uses the same
+           smaller radius. A full 0px square clashed with the rest of the
+           UI (sidebar/buttons/tabs are all rounded); this reads as
+           structured/sturdy without looking like a stray rectangle. Header
+           is solid (not glass/translucent) on purpose, same reasoning. */
+        <div className="overflow-x-auto rounded-lg border-2 border-hairline-strong">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
+                <th className={cn("w-10 px-4 py-3", CELL_DIVIDER)}>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} aria-label="Selecionar todos" />
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((lead, i) => {
-              // Same lead-vs-deal merge as the "Etapa" cell itself
-              // (renderColumnCell's "etapa" case) — a converted lead shows
-              // its deal's stage, not its own. Reused here to color the
-              // row's left edge, so the pipeline stage reads at a glance
-              // down the whole table, not just from the badge text.
-              const deal = dealByLeadId.get(lead.id);
-              const stageStyle = deal ? DEAL_STATUS_STYLE[deal.status] : LEAD_STATUS_STYLE[lead.status];
-
-              return (
-                <tr
-                  key={lead.id}
-                  className={cn(
-                    "border-b border-hairline-strong border-l-4 transition hover:bg-surface-2/70",
-                    stageStyle.accentClassName,
-                    i % 2 === 1 && "bg-surface-1/35"
-                  )}
-                >
-                <td className={cn("px-4 py-3", CELL_DIVIDER)} onClick={(e) => e.stopPropagation()}>
-                  <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} aria-label={`Selecionar ${lead.nome}`} />
-                </td>
-                {columns.map((col) => {
-                  const cellContent = renderColumnCell(col.key, lead, ctx);
-
-                  if (col.key === "etapa") {
-                    // Row-dependent, not column-dependent (see COLUMN_EDIT's
-                    // comment in leads-table-columns.tsx) — a deal existing
-                    // for this lead means Etapa edits deals.status, with
-                    // deal-flavored options; otherwise it edits leads.status.
-                    const isDeal = !!deal;
-                    const etapaOptions = isDeal
-                      ? DEAL_STATUS_OPTIONS.map((s) => ({ id: s, label: DEAL_STATUS_STYLE[s].label }))
-                      : LEAD_STATUS_OPTIONS.map((s) => ({ id: s, label: LEAD_STATUS_STYLE[s].label }));
-                    const etapaValue = isDeal ? deal.status : lead.status;
-
-                    return (
-                      <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
-                        <EditableCell
-                          kind="status_select"
-                          value={etapaValue}
-                          display={cellContent}
-                          options={etapaOptions}
-                          onSave={(v) => onEtapaChange(lead.id, deal?.id ?? null, v as string)}
-                        />
-                      </td>
-                    );
-                  }
-
-                  const edit = COLUMN_EDIT[col.key];
-                  if (edit) {
-                    // No onClick here — EditableCell owns its own
-                    // double-click (text/number) or single-click
-                    // (select/combobox) interaction, and no `truncate`
-                    // (its overflow:hidden would clip the dropdown
-                    // popover); truncation for the closed-state display
-                    // happens inside EditableCell instead.
-                    return (
-                      <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
-                        <EditableCell
-                          kind={edit.kind}
-                          value={String(lead[edit.field] ?? "")}
-                          display={cellContent}
-                          options={editOptions.get(col.key)}
-                          onSave={(v) => onFieldSave(lead.id, edit.field, v)}
-                          onCreateOption={
-                            col.key === "nicho"
-                              ? async (label) => {
-                                  const niche = await onCreateNiche(label);
-                                  return { id: niche.id, label: niche.nome };
-                                }
-                              : undefined
-                          }
-                        />
-                      </td>
-                    );
-                  }
-
-                  return (
-                    <td
-                      key={col.key}
-                      className={cn(
-                        "max-w-[200px] cursor-pointer truncate whitespace-nowrap px-4 py-3 text-secondary",
-                        CELL_DIVIDER,
-                        col.key === "nome" && "font-medium text-primary"
-                      )}
-                      onClick={() => onRowClick(lead)}
-                    >
-                      {cellContent}
-                    </td>
-                  );
-                })}
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-sm text-muted">
-                  {leads.length === 0 ? "Nenhum lead ainda." : "Nenhum lead corresponde à pesquisa."}
-                </td>
+                {columns.map((col) => (
+                  <th key={col.key} className={cn("max-w-[200px] truncate whitespace-nowrap px-4 py-3", CELL_DIVIDER)}>
+                    {col.label}
+                  </th>
+                ))}
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filtered.map((lead, i) => renderRow(lead, i, true))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-sm text-muted">
+                    {leads.length === 0 ? "Nenhum lead ainda." : "Nenhum lead corresponde à pesquisa."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
