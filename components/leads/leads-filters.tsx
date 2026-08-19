@@ -24,16 +24,18 @@ interface LeadsFiltersProps {
 
 const activeFilterCount = (filters: LeadFilters) => Object.values(filters).filter(Boolean).length;
 
-// Filters the leads table server-side (status/nicho/período de entrada) —
-// tucked behind an icon button + popover (not always-on controls) to avoid
-// cluttering the toolbar, same pattern as ColumnPicker. SDR has its own
-// dedicated toolbar button instead (components/leads/person-filter.tsx),
-// since a person picker wants an avatar per option, which doesn't fit a
-// plain <select>. Applying any field restarts the list from the top via
-// filterLeadsAction, since a previous "load more" cursor doesn't carry
-// meaning against a different filter. "Agrupar por" (collapsible sections,
-// like the Monday board's "Agrupar por") is a separate, bigger feature —
-// out of scope here.
+// Filters the leads table server-side (status/nicho) — tucked behind an
+// icon button + popover (not always-on controls) to avoid cluttering the
+// toolbar, same pattern as ColumnPicker. SDR has its own dedicated toolbar
+// button instead (components/leads/person-filter.tsx), since a person
+// picker wants an avatar per option, which doesn't fit a plain <select>.
+// Applying any field restarts the list from the top via filterLeadsAction,
+// since a previous "load more" cursor doesn't carry meaning against a
+// different filter. Date range used to live here too (plain "Entrada de/
+// até" inputs) — moved to its own always-visible MonthFilter in
+// crm-workspace.tsx's toolbar (same widget the SDR/Closer pipelines already
+// use), since a bare popover field defaulted to no date bound at all, which
+// is exactly what let Quadro principal load thousands of leads.
 //
 // "Etapa" is split into two separate filters (Lead vs. Negócio) rather than
 // one merged control — the table's Etapa column shows a deal's status once
@@ -132,21 +134,6 @@ export function LeadsFilters({ filters, onChange, niches }: LeadsFiltersProps) {
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-de" className={fieldLabelClass}>
-                  Entrada de
-                </label>
-                <input id="filter-de" type="date" value={filters.criado_em_from ?? ""} onChange={(e) => set("criado_em_from", e.target.value)} className={fieldInputClass} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-ate" className={fieldLabelClass}>
-                  até
-                </label>
-                <input id="filter-ate" type="date" value={filters.criado_em_to ?? ""} onChange={(e) => set("criado_em_to", e.target.value)} className={fieldInputClass} />
-              </div>
             </div>
           </div>
         </div>

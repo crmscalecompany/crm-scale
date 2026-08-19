@@ -58,9 +58,20 @@ export interface ListLeadsParams {
 // not chronological entry date. `id` is the tiebreaker both for leads
 // sharing a criado_em and for leads with no criado_em at all (nulls last).
 export async function listLeads(db: Client, params: ListLeadsParams) {
+  // "exact" (an extra COUNT(*) the RLS/RPC planner has to run per request)
+  // is fine once a date range narrows the scan (a month tops out around
+  // ~400 rows in this data), but against the *whole* ~7,400-row table —
+  // i.e. "Todos os períodos" with no criado_em bound — it was hitting
+  // Postgres's statement_timeout outright (confirmed against the live DB:
+  // "canceling statement due to statement timeout", every single time).
+  // "estimated" reads Postgres's own table statistics instead of scanning,
+  // trading exact-to-the-row accuracy (irrelevant for "Todos os períodos" —
+  // nobody needs the precise total for an intentionally-unbounded view) for
+  // actually returning a result.
+  const countMode = params.criado_em_from || params.criado_em_to ? "exact" : "estimated";
   let query = db
     .from("leads")
-    .select("*", { count: "exact" })
+    .select("*", { count: countMode })
     // Every normal listing excludes soft-deleted leads (see softDeleteLead
     // below) — the trash view uses the separate listDeletedLeads query
     // instead of a flag here, since "show me the trash" and "show me leads"

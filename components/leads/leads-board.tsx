@@ -162,7 +162,14 @@ export function LeadsBoard({
       setFiltering(true);
       setError(null);
       try {
-        const result = await filterLeadsAction(filters);
+        // A date-bounded fetch (Quadro tabs' MonthFilter sets criado_em_from)
+        // is safe to load in full — the highest month observed in this data
+        // is ~240 leads — so it skips the 200-row "Carregar mais" cap
+        // entirely instead of making the user click through an already-
+        // bounded month. Unbounded ("todos os períodos") keeps the smaller
+        // default; that's the genuinely large case pagination exists for.
+        const limit = filters.criado_em_from ? 1000 : 200;
+        const result = await filterLeadsAction(filters, limit);
         if (cancelled) return;
         setLeads(result.leads);
         setDeals(result.deals);
@@ -327,7 +334,8 @@ export function LeadsBoard({
     setLoadingMore(true);
     setError(null);
     try {
-      const more = await loadMoreLeadsAction({ criado_em: last.criado_em, id: last.id }, filters);
+      const limit = filters.criado_em_from ? 1000 : 200;
+      const more = await loadMoreLeadsAction({ criado_em: last.criado_em, id: last.id }, filters, limit);
       // Dedupe defensively even with cursor pagination.
       setLeads((prev) => mergeById(prev, more.leads));
       setDeals((prev) => mergeById(prev, more.deals));

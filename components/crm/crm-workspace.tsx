@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { CrmViewTabs } from "@/components/crm/crm-view-tabs";
 import { LeadsFilters } from "@/components/leads/leads-filters";
 import { PersonFilter } from "@/components/leads/person-filter";
+import { MonthFilter } from "@/components/leads/month-filter";
 import { ColumnPicker } from "@/components/leads/column-picker";
 import { ScaleLogo } from "@/components/scale-logo";
 import { LeadsBoard } from "@/components/leads/leads-board";
@@ -17,6 +18,7 @@ import { NotifySubscribersView } from "@/components/automations/notify-subscribe
 import { LeadsTrash } from "@/components/leads/leads-trash";
 import type { LeadFilters } from "@/lib/actions/leads";
 import { DEFAULT_VISIBLE_COLUMNS } from "@/lib/leads-table-columns";
+import { currentMonthInBrazil, monthDateRange } from "@/lib/format";
 import { useLocalStorageSet } from "@/lib/use-local-storage-set";
 import type { Database } from "@/lib/types/database.types";
 
@@ -131,6 +133,18 @@ export function CrmWorkspace({
   const [activeSection, setActiveSection] = useState("crm");
   const [activeView, setActiveView] = useState("quadro_principal");
   const [filters, setFilters] = useState<LeadFilters>({});
+  // Defaults to the current month, not "todos os períodos" — Quadro
+  // principal/Orgânico/Tráfego were loading thousands of leads (Tráfego
+  // alone is ~5,600) with no date bound at all. Kept separate from
+  // `filters` (merged into it via `effectiveFilters` below) since
+  // MonthFilter's month-stepper UX doesn't map cleanly onto the Filtros
+  // popover's generic field-by-field shape — same reasoning the SDR/Closer
+  // pipelines already applied when they got their own MonthFilter.
+  const [month, setMonth] = useState<string | null>(currentMonthInBrazil);
+  const effectiveFilters = useMemo<LeadFilters>(() => {
+    const range = month ? monthDateRange(month) : { from: undefined, to: undefined };
+    return { ...filters, criado_em_from: range.from, criado_em_to: range.to };
+  }, [filters, month]);
   const [visibleColumns, setVisibleColumns] = useLocalStorageSet(
     "crm:leads-table:columns",
     DEFAULT_VISIBLE_COLUMNS,
@@ -207,6 +221,11 @@ export function CrmWorkspace({
                   activeView === "quadro_organico" ||
                   activeView === "quadro_trafego") && (
                   <>
+                    <MonthFilter
+                      month={month}
+                      onChange={setMonth}
+                      defaultMonth={currentMonthInBrazil()}
+                    />
                     <LeadsFilters
                       filters={filters}
                       onChange={setFilters}
@@ -250,7 +269,7 @@ export function CrmWorkspace({
                     currentUserRole={currentUserRole}
                     attributions={attributions}
                     deals={dealsForLeads}
-                    filters={filters}
+                    filters={effectiveFilters}
                     visibleColumns={visibleColumns}
                     onNicheCreated={handleNicheCreated}
                   />
@@ -277,7 +296,7 @@ export function CrmWorkspace({
                     currentUserRole={currentUserRole}
                     attributions={[]}
                     deals={[]}
-                    filters={{ ...filters, origem_in: ORIGEM_ORGANICO }}
+                    filters={{ ...effectiveFilters, origem_in: ORIGEM_ORGANICO }}
                     visibleColumns={visibleColumns}
                     onNicheCreated={handleNicheCreated}
                   />
@@ -304,7 +323,7 @@ export function CrmWorkspace({
                     currentUserRole={currentUserRole}
                     attributions={[]}
                     deals={[]}
-                    filters={{ ...filters, origem_in: ORIGEM_TRAFEGO }}
+                    filters={{ ...effectiveFilters, origem_in: ORIGEM_TRAFEGO }}
                     visibleColumns={visibleColumns}
                     onNicheCreated={handleNicheCreated}
                   />
