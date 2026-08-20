@@ -34,3 +34,12 @@ export async function createLeadAttribution(db: Client, input: LeadAttributionIn
   if (error) throw error;
   return data;
 }
+
+// Populates the Quadro Live "Evento" filter (crm-workspace.tsx) — every
+// distinct live date leads have been tagged with, newest first.
+export async function listDistinctEventos(db: Client) {
+  const { data, error } = await db.from("lead_attribution").select("evento").not("evento", "is", null);
+  if (error) throw error;
+  const unique = new Set((data ?? []).map((row) => row.evento).filter((v): v is string => !!v));
+  return [...unique].sort().reverse();
+}

@@ -427,6 +427,7 @@ export type Database = {
           campanha: string | null
           capturado_em: string
           criativo: string | null
+          evento: string | null
           fbclid: string | null
           id: string
           lead_id: string
@@ -440,6 +441,7 @@ export type Database = {
           campanha?: string | null
           capturado_em?: string
           criativo?: string | null
+          evento?: string | null
           fbclid?: string | null
           id?: string
           lead_id: string
@@ -453,6 +455,7 @@ export type Database = {
           campanha?: string | null
           capturado_em?: string
           criativo?: string | null
+          evento?: string | null
           fbclid?: string | null
           id?: string
           lead_id?: string

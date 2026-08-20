@@ -43,13 +43,14 @@ export async function POST(request: NextRequest) {
       tipo: "Formulário",
     });
 
-    if (parsed.data.utm_source || parsed.data.utm_medium || parsed.data.utm_campaign) {
+    if (parsed.data.utm_source || parsed.data.utm_medium || parsed.data.utm_campaign || parsed.data.evento) {
       try {
         await createLeadAttribution(db, {
           lead_id: lead.id,
           utm_source: parsed.data.utm_source,
           utm_medium: parsed.data.utm_medium,
           utm_campaign: parsed.data.utm_campaign,
+          evento: parsed.data.evento,
         });
       } catch (err) {
         console.error(`[POST /api/v1/webhooks/live] falha ao salvar atribuição do lead ${lead.id}`, err);

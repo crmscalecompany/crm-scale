@@ -27,6 +27,10 @@ export interface ListLeadsParams {
    * would be cleaner but Postgrest doesn't expose cross-table filters
    * without a view/RPC, and this is a low-volume, infrequent filter. */
   deal_status?: string;
+  /** Quadro Live's "Evento" filter (crm-workspace.tsx) — same lookup-then-
+   * .in() shape as deal_status above, but unlike deal_status this one stays
+   * genuinely low-volume: each live is capped at ~50 signups. */
+  evento?: string;
   niche_id?: string;
   owner_sdr_id?: string;
   direcao?: string;
@@ -92,6 +96,17 @@ export async function listLeads(db: Client, params: ListLeadsParams) {
       .eq("status", params.deal_status as Database["public"]["Tables"]["deals"]["Row"]["status"]);
     if (dealError) throw dealError;
     const leadIds = (dealRows ?? []).map((d) => d.lead_id);
+    if (leadIds.length === 0) return { data: [], total: 0 };
+    query = query.in("id", leadIds);
+  }
+
+  if (params.evento) {
+    const { data: attrRows, error: attrError } = await db
+      .from("lead_attribution")
+      .select("lead_id")
+      .eq("evento", params.evento);
+    if (attrError) throw attrError;
+    const leadIds = (attrRows ?? []).map((a) => a.lead_id);
     if (leadIds.length === 0) return { data: [], total: 0 };
     query = query.in("id", leadIds);
   }

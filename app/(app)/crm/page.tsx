@@ -7,7 +7,7 @@ import { listQualificationReasons } from "@/lib/data/qualification-reasons";
 import { listQualificationsFor } from "@/lib/data/qualifications";
 import { listLostReasons } from "@/lib/data/lost-reasons";
 import { listMeetingsByDealIds } from "@/lib/data/meetings";
-import { listAttributionByLeadIds } from "@/lib/data/lead-attribution";
+import { listAttributionByLeadIds, listDistinctEventos } from "@/lib/data/lead-attribution";
 import { CrmWorkspace } from "@/components/crm/crm-workspace";
 
 // The single real screen inside app/(app) — consolidates what used to be
@@ -16,7 +16,7 @@ import { CrmWorkspace } from "@/components/crm/crm-workspace";
 export default async function CrmPage() {
   const db = await createClient();
 
-  const [{ data: leads, total: totalLeads }, { data: allDeals }, niches, sdrs, closers, sdrReasons, closerReasons, sdrLostReasons, closerLostReasons, profile] =
+  const [{ data: leads, total: totalLeads }, { data: allDeals }, niches, sdrs, closers, sdrReasons, closerReasons, sdrLostReasons, closerLostReasons, profile, eventos] =
     await Promise.all([
       listLeads(db, { limit: 200, offset: 0 }),
       listDeals(db, { limit: 200, offset: 0 }),
@@ -28,6 +28,7 @@ export default async function CrmPage() {
       listLostReasons(db, "sdr"),
       listLostReasons(db, "closer"),
       getCurrentUserProfile(db),
+      listDistinctEventos(db),
     ]);
 
   const leadIds = leads.map((l) => l.id);
@@ -71,6 +72,7 @@ export default async function CrmPage() {
       attributions={attributions}
       dealsForLeads={dealsForLeads}
       dealLeadRefs={dealLeadRefs}
+      eventos={eventos}
     />
   );
 }

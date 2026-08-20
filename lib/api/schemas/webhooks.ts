@@ -35,6 +35,10 @@ export const liveLeadSchema = z.object({
   whatsapp: z.string().min(1, "whatsapp é obrigatório"),
   email: z.string().email("email inválido"),
   faturamento: z.string().min(1, "faturamento é obrigatório"),
+  // "YYYY-MM-DD" da live específica (ex: "2026-08-31") — permite o Quadro
+  // Live filtrar/agrupar por evento. Nullish como os UTMs: perder essa tag
+  // não deveria derrubar a captura do lead.
+  evento: z.string().nullish(),
   utm_source: z.string().nullish(),
   utm_medium: z.string().nullish(),
   utm_campaign: z.string().nullish(),

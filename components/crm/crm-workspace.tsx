@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { CrmViewTabs } from "@/components/crm/crm-view-tabs";
 import { LeadsFilters } from "@/components/leads/leads-filters";
 import { PersonFilter } from "@/components/leads/person-filter";
+import { EventoFilter } from "@/components/leads/evento-filter";
 import { MonthFilter } from "@/components/leads/month-filter";
 import { ColumnPicker } from "@/components/leads/column-picker";
 import { ScaleLogo } from "@/components/scale-logo";
@@ -75,6 +76,9 @@ interface CrmWorkspaceProps {
   currentUserRole: string | null;
   currentUserName: string | null;
   attributions: LeadAttribution[];
+  /** "YYYY-MM-DD" values, newest first — feeds Quadro Live's "Evento"
+   * filter (see lib/data/lead-attribution.ts's listDistinctEventos). */
+  eventos: string[];
 }
 
 // Which `origem` values count as each lane for the Quadro Orgânico/Quadro
@@ -128,6 +132,7 @@ export function CrmWorkspace({
   currentUserRole,
   currentUserName,
   attributions,
+  eventos,
 }: CrmWorkspaceProps) {
   // Lifted to state (not just the prop) so a niche created from the leads
   // table's inline "Nicho" combobox (editable-cell.tsx) shows up
@@ -244,6 +249,17 @@ export function CrmWorkspace({
                       }
                       people={sdrs}
                     />
+                    {/* Only Quadro Live's board actually applies `evento`
+                        below — writes to the same shared `filters` state as
+                        every other toolbar control, so the other three
+                        boards explicitly null it back out. */}
+                    {activeView === "quadro_live" && (
+                      <EventoFilter
+                        selected={filters.evento}
+                        onChange={(evento) => setFilters({ ...filters, evento })}
+                        eventos={eventos}
+                      />
+                    )}
                     <ColumnPicker
                       visible={visibleColumns}
                       onChange={setVisibleColumns}
@@ -275,7 +291,7 @@ export function CrmWorkspace({
                     currentUserRole={currentUserRole}
                     attributions={attributions}
                     deals={dealsForLeads}
-                    filters={effectiveFilters}
+                    filters={{ ...effectiveFilters, evento: undefined }}
                     visibleColumns={visibleColumns}
                     onNicheCreated={handleNicheCreated}
                   />
@@ -302,7 +318,7 @@ export function CrmWorkspace({
                     currentUserRole={currentUserRole}
                     attributions={[]}
                     deals={[]}
-                    filters={{ ...effectiveFilters, origem_in: ORIGEM_ORGANICO }}
+                    filters={{ ...effectiveFilters, origem_in: ORIGEM_ORGANICO, evento: undefined }}
                     visibleColumns={visibleColumns}
                     onNicheCreated={handleNicheCreated}
                   />
@@ -329,7 +345,7 @@ export function CrmWorkspace({
                     currentUserRole={currentUserRole}
                     attributions={[]}
                     deals={[]}
-                    filters={{ ...effectiveFilters, origem_in: ORIGEM_TRAFEGO }}
+                    filters={{ ...effectiveFilters, origem_in: ORIGEM_TRAFEGO, evento: undefined }}
                     visibleColumns={visibleColumns}
                     onNicheCreated={handleNicheCreated}
                   />

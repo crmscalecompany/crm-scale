@@ -29,6 +29,9 @@ export interface LeadFilters {
   /** Fixed per-tab constraint for "Quadro Orgânico"/"Quadro de Tráfego" —
    * see lib/data/leads.ts's ListLeadsParams.origem_in. */
   origem_in?: string[];
+  /** Quadro Live's "Evento" filter — see lib/data/leads.ts's
+   * ListLeadsParams.evento. */
+  evento?: string;
 }
 
 export async function createLeadAction(input: LeadInsert) {
