@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:monday": "tsx scripts/migrate-monday.ts",
+    "backfill:monday-tipo-lp": "tsx scripts/backfill-monday-tipo-lp.ts",
+    "import:missing-monday": "tsx scripts/import-missing-monday-leads.ts",
     "seed:test-users": "tsx scripts/seed-test-users.ts",
     "db:types": "npx supabase gen types typescript --linked > lib/types/database.types.ts"
   },

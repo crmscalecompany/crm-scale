@@ -15,6 +15,7 @@
 // the unmapped "Status" column, "Comissão" not auto-populated) are
 // documented in lib/migration/monday-columns.ts and the Week 1 plan.
 import dotenv from "dotenv";
+import { pathToFileURL } from "node:url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discoverColumns, fetchAllItems, colText } from "@/lib/migration/monday-client";
 import { MONDAY_COL, UNMAPPED_PLACEHOLDER_KEYS, getMondayBoardId } from "@/lib/migration/monday-columns";
@@ -83,7 +84,7 @@ function parseMondayDateTime(text: string | null): string | null {
 // if it still fails, the item is skipped (not the run) and reported at the
 // end — safe because the migration is idempotent on monday_item_id, so a
 // second pass over just the failed items is a normal re-run.
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
@@ -105,7 +106,7 @@ async function runDiscovery() {
   console.log(`\n${columns.length} colunas encontradas. Preencha lib/migration/monday-columns.ts com os ids reais.`);
 }
 
-type AdminClient = ReturnType<typeof createAdminClient>;
+export type AdminClient = ReturnType<typeof createAdminClient>;
 
 async function upsertNiche(db: AdminClient, name: string | null): Promise<string | null> {
   if (!name || !name.trim()) return null;
@@ -140,7 +141,7 @@ interface ItemWriteResult {
 // in withRetry() + a per-item try/catch in the main loop (see withRetry's
 // comment for why: a multi-thousand-item run WILL hit a transient network
 // error, and one item's failure shouldn't take down the other ~7000).
-async function writeItemToDb(
+export async function writeItemToDb(
   db: AdminClient,
   item: Awaited<ReturnType<typeof fetchAllItems>>[number],
   nicheName: string | null,
@@ -168,6 +169,7 @@ async function writeItemToDb(
         niche_id: nicheId,
         origem: colText(item, MONDAY_COL.origem),
         direcao,
+        tipo: colText(item, MONDAY_COL.tipo),
         qualificador: colText(item, MONDAY_COL.qualificador),
         observacao: colText(item, MONDAY_COL.observacao),
         owner_sdr_id: sdrId,
@@ -194,6 +196,7 @@ async function writeItemToDb(
     criativo: colText(item, MONDAY_COL.criativo),
     fbclid: colText(item, MONDAY_COL.fbclid),
     lead_id_ads: colText(item, MONDAY_COL.leadIdAds),
+    lp: colText(item, MONDAY_COL.lp),
   });
 
   // Presence of a Closer — not the etapa text — is the signal a deals row
@@ -355,7 +358,17 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Guarded — this module is also `import`ed for its writeItemToDb/withRetry
+// exports (see scripts/import-missing-monday-leads.ts) now that it isn't
+// the only script touching Monday data. Without this check, importing them
+// silently re-ran this whole file's main() too — including a real,
+// destructive re-migration of all ~7,600 leads if the importing script
+// wasn't itself passed --dry-run (caught during testing: it happened to
+// inherit --dry-run from shared process.argv, or it would have).
+const isMainModule = process.argv[1] != null && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMainModule) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -55,6 +55,16 @@ export const MONDAY_COL = {
   leadIdAds: "text_mkv9hqh5",
   fbclid: "text_mm50wg33",
   statusColumn: "color_mm5a6fjc", // Monday's auto-created "Status" column, distinct from "Etapa" — meaning unconfirmed
+
+  // --- added 2026-08-20: found via a fresh --discover-columns run after a
+  // user report that "Tipo" and other fields weren't showing up. The
+  // original mapping (2026-08-06) simply never included these two —
+  // "Tipo" is well-populated (Forms Nativo/LP, ~74% of the board) and maps
+  // straight onto leads.tipo (already used by the site webhooks); "LP" is
+  // a real Monday column ("LP", text_mm68ksv9) that was never fetched at
+  // all before, not even into raw_monday. See scripts/backfill-monday-tipo-lp.ts.
+  tipo: "color_mktkz4ww",
+  lp: "text_mm68ksv9",
 } as const;
 
 export type MondayColKey = keyof typeof MONDAY_COL;

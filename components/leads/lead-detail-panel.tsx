@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Trash2, X } from "lucide-react";
 import { fieldLabelClass, fieldInputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
-import { formatDateTimeBR } from "@/lib/format";
+import { formatDateBR, formatDateTimeBR } from "@/lib/format";
 import { updateLeadDetailsAction, deleteLeadAction } from "@/lib/actions/leads";
 import { LEAD_STATUS_STYLE, DEAL_STATUS_STYLE } from "@/lib/status-colors";
 import { PersonInline } from "@/components/ui/avatar";
@@ -328,6 +328,11 @@ export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs,
             <ReadOnlyRow label="Criativo" value={attribution.criativo} />
             <ReadOnlyRow label="fbclid" value={attribution.fbclid} />
             <ReadOnlyRow label="Lead Id (Ads)" value={attribution.lead_id_ads} />
+            <ReadOnlyRow label="LP" value={attribution.lp} />
+            <ReadOnlyRow label="Evento" value={attribution.evento ? formatDateBR(attribution.evento) : null} />
+            <ReadOnlyRow label="UTM Source" value={attribution.utm_source} />
+            <ReadOnlyRow label="UTM Medium" value={attribution.utm_medium} />
+            <ReadOnlyRow label="UTM Campaign" value={attribution.utm_campaign} />
           </section>
         )}
 

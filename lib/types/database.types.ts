@@ -432,6 +432,7 @@ export type Database = {
           id: string
           lead_id: string
           lead_id_ads: string | null
+          lp: string | null
           publico: string | null
           utm_campaign: string | null
           utm_medium: string | null
@@ -446,6 +447,7 @@ export type Database = {
           id?: string
           lead_id: string
           lead_id_ads?: string | null
+          lp?: string | null
           publico?: string | null
           utm_campaign?: string | null
           utm_medium?: string | null
@@ -460,6 +462,7 @@ export type Database = {
           id?: string
           lead_id?: string
           lead_id_ads?: string | null
+          lp?: string | null
           publico?: string | null
           utm_campaign?: string | null
           utm_medium?: string | null
