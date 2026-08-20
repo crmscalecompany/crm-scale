@@ -2,6 +2,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database.types";
 import { emitEvent } from "@/lib/automation/events";
+import { chunk } from "@/lib/utils";
+
+// Past this many UUIDs, a single .in() query string risks the ~16KB header
+// limit (see lib/utils.ts's chunk comment).
+const IN_CHUNK_SIZE = 150;
 
 type Client = SupabaseClient<Database>;
 type LeadInsert = Database["public"]["Tables"]["leads"]["Insert"];
@@ -142,9 +147,14 @@ export async function getLead(db: Client, id: string) {
 // with one query instead of one per card.
 export async function listLeadsByIds(db: Client, ids: string[]) {
   if (ids.length === 0) return [];
-  const { data, error } = await db.from("leads").select("id, nome").in("id", ids);
-  if (error) throw error;
-  return data ?? [];
+  const pages = await Promise.all(
+    chunk(ids, IN_CHUNK_SIZE).map(async (page) => {
+      const { data, error } = await db.from("leads").select("id, nome").in("id", page);
+      if (error) throw error;
+      return data ?? [];
+    })
+  );
+  return pages.flat();
 }
 
 export async function createLead(db: Client, input: LeadInsert) {

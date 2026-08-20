@@ -2,6 +2,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database.types";
 import { emitEvent } from "@/lib/automation/events";
+import { chunk } from "@/lib/utils";
+
+// Past this many UUIDs, a single .in() query string risks the ~16KB header
+// limit (see lib/utils.ts's chunk comment).
+const IN_CHUNK_SIZE = 150;
 
 type Client = SupabaseClient<Database>;
 type DealInsert = Database["public"]["Tables"]["deals"]["Insert"];
@@ -57,18 +62,28 @@ export async function getDeal(db: Client, id: string) {
 // so this is a lead_id -> deal map, not a one-to-many list.
 export async function listDealsByLeadIds(db: Client, leadIds: string[]) {
   if (leadIds.length === 0) return [];
-  const { data, error } = await db.from("deals").select("*").in("lead_id", leadIds);
-  if (error) throw error;
-  return data ?? [];
+  const pages = await Promise.all(
+    chunk(leadIds, IN_CHUNK_SIZE).map(async (page) => {
+      const { data, error } = await db.from("deals").select("*").in("lead_id", page);
+      if (error) throw error;
+      return data ?? [];
+    })
+  );
+  return pages.flat();
 }
 
 // Batched lookup — lets the commissions view resolve
 // deal_products.deal_id -> lead_id (and thus lead name) with one query.
 export async function listDealsByIds(db: Client, ids: string[]) {
   if (ids.length === 0) return [];
-  const { data, error } = await db.from("deals").select("*").in("id", ids);
-  if (error) throw error;
-  return data ?? [];
+  const pages = await Promise.all(
+    chunk(ids, IN_CHUNK_SIZE).map(async (page) => {
+      const { data, error } = await db.from("deals").select("*").in("id", page);
+      if (error) throw error;
+      return data ?? [];
+    })
+  );
+  return pages.flat();
 }
 
 export async function createDeal(db: Client, input: DealInsert) {

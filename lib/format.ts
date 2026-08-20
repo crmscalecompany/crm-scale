@@ -31,9 +31,16 @@ export function shiftMonth(month: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+// Same -03:00 pitfall as weekdayName above, and specifying timeZone alone
+// doesn't fix it: midnight UTC on day 1 converted to *any* UTC-negative
+// zone is still the last day of the *previous* month, so the picker showed
+// "julho" while actually filtering "agosto". Parse as noon UTC instead, so
+// the -03:00 Brazil offset never rolls it back a day.
 export function monthLabel(month: string): string {
   const [y, m] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(Date.UTC(y!, m! - 1, 1)));
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "America/Sao_Paulo" }).format(
+    new Date(Date.UTC(y!, m! - 1, 1, 12))
+  );
 }
 
 // "YYYY-MM" -> first/last day of that month as "YYYY-MM-DD", for
