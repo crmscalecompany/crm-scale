@@ -1,7 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, DollarSign, LogOut, MessageCircle, Users, Zap } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  Handshake,
+  LogOut,
+  Megaphone,
+  MessageCircle,
+  Phone,
+  Sprout,
+  Table2,
+  Target,
+  Trash2,
+  Users,
+  Video,
+  Zap,
+} from "lucide-react";
 import { ScaleLogo } from "@/components/scale-logo";
 import { cn } from "@/lib/utils";
 
@@ -12,19 +28,54 @@ export interface SidebarSectionDef {
   enabled: boolean;
 }
 
-// Top-level sections of the app — CRM (leads/deals), Comissões (regras +
-// lista, components/commissions/commissions-view.tsx), and Automações
-// ("Avisar inscritos", components/automations/notify-subscribers-view.tsx),
-// plus Atendimento (real WhatsApp conversations) still coming. The CRM
-// section's own sub-views (Quadro principal,
-// Kanban, Este Mês, etc) live as tabs inside the CRM workspace itself
-// (components/crm/crm-view-tabs.tsx), not here — this sidebar is for
-// switching between products, not between views of one product.
+// Bottom group: settings/other products — Comissões (regras + lista,
+// components/commissions/commissions-view.tsx), Automações ("Avisar
+// inscritos", components/automations/notify-subscribers-view.tsx), and
+// Atendimento (real WhatsApp conversations) still coming. No standalone
+// "CRM" entry here — its sub-views are the top group (CRM_VIEWS) below,
+// reachable directly instead of through an intermediate product switch.
 export const SIDEBAR_SECTIONS: SidebarSectionDef[] = [
-  { key: "crm", label: "CRM", icon: Users, enabled: true },
   { key: "comissoes", label: "Comissões", icon: DollarSign, enabled: true },
   { key: "atendimento", label: "Atendimento", icon: MessageCircle, enabled: false },
   { key: "automacoes", label: "Automações", icon: Zap, enabled: true },
+];
+
+export interface CrmViewDef {
+  key: string;
+  label: string;
+  icon: typeof Table2;
+  enabled: boolean;
+}
+
+// Top group: every CRM "quadro"/board, one click away instead of living
+// behind a separate CrmViewTabs row inside the workspace (per explicit
+// user request — menu lateral dividido em 2 partes, tabelas em cima,
+// configurações embaixo). Selecting one of these also switches
+// activeSection to "crm" (see crm-workspace.tsx's selectView) since they're
+// reachable now even while looking at Comissões/Automações.
+//
+// Este Mês/Histórico/Análise Tráfego were dropped per explicit user
+// feedback — they'd have been saved filters/groupings of this same table,
+// which the Filtros popover and the separate analytics dashboard already
+// cover. SDR's/Closer's are NOT the same kind of thing, despite looking
+// similar at first — they're real role-scoped pipeline boards with their
+// own grouping logic (see sdr-pipeline-board.tsx/closer-pipeline-board.tsx),
+// not filtered views of the table. Quadro Orgânico/Quadro de Tráfego/Quadro
+// Live are an operational split (Case/Artigo/Site Institucional vs. paid
+// traffic vs. live-event signups work differently day-to-day), not an
+// analytics one. There's no "Kanban" entry — it's a view toggle inside each
+// Quadro's own table header (leads-table.tsx), not a peer of these.
+export const CRM_VIEWS: CrmViewDef[] = [
+  { key: "quadro_principal", label: "Quadro principal", icon: Table2, enabled: true },
+  { key: "quadro_organico", label: "Quadro Orgânico", icon: Sprout, enabled: true },
+  { key: "quadro_trafego", label: "Quadro de Tráfego", icon: Megaphone, enabled: true },
+  // Leads de LPs de live/evento (origem "Site — Live", see crm-workspace.tsx's
+  // ORIGEM_LIVE) — painel fixo e reutilizável, não específico de uma live só.
+  { key: "quadro_live", label: "Quadro Live", icon: Video, enabled: true },
+  { key: "negocios", label: "Negócios", icon: Handshake, enabled: true },
+  { key: "sdrs", label: "SDR's", icon: Phone, enabled: true },
+  { key: "closers", label: "Closer's", icon: Target, enabled: true },
+  { key: "lixeira", label: "Lixeira", icon: Trash2, enabled: true },
 ];
 
 const ROLE_LABEL: Record<string, string> = {
@@ -37,6 +88,8 @@ const ROLE_LABEL: Record<string, string> = {
 
 interface AppSidebarProps {
   activeSection: string;
+  activeView: string;
+  onSelectView: (key: string) => void;
   onSelectSection: (key: string) => void;
   userName: string | null;
   userRole: string | null;
@@ -45,8 +98,19 @@ interface AppSidebarProps {
 }
 
 // Collapsible desktop sidebar (persistent, icon-only when collapsed) +
-// off-canvas mobile drawer, sharing the same inner content.
-export function AppSidebar({ activeSection, onSelectSection, userName, userRole, mobileOpen, onCloseMobile }: AppSidebarProps) {
+// off-canvas mobile drawer, sharing the same inner content. Two nav groups
+// now, not one: CRM_VIEWS on top (every quadro/board, one click away) and
+// SIDEBAR_SECTIONS on the bottom (other products/settings).
+export function AppSidebar({
+  activeSection,
+  activeView,
+  onSelectView,
+  onSelectSection,
+  userName,
+  userRole,
+  mobileOpen,
+  onCloseMobile,
+}: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const content = (
@@ -70,6 +134,38 @@ export function AppSidebar({ activeSection, onSelectSection, userName, userRole,
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-4">
+        <ul className="flex flex-col gap-1">
+          {CRM_VIEWS.map((view) => {
+            const Icon = view.icon;
+            const active = activeSection === "crm" && activeView === view.key;
+            return (
+              <li key={view.key}>
+                <button
+                  type="button"
+                  disabled={!view.enabled}
+                  onClick={() => {
+                    onSelectView(view.key);
+                    onCloseMobile();
+                  }}
+                  title={collapsed ? view.label : undefined}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition",
+                    collapsed && "justify-center",
+                    !view.enabled && "cursor-not-allowed opacity-40",
+                    view.enabled && active && "bg-accent-primary/15 text-primary",
+                    view.enabled && !active && "text-secondary hover:bg-white/5 hover:text-primary"
+                  )}
+                >
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed && <span className="flex-1 text-left">{view.label}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className={cn("my-3 border-t border-hairline", collapsed && "mx-1")} />
+
         <ul className="flex flex-col gap-1">
           {SIDEBAR_SECTIONS.map((section) => {
             const Icon = section.icon;

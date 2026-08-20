@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, X } from "lucide-react";
+import { CalendarPlus, Loader2, Mail, MailCheck, Trash2, X } from "lucide-react";
 import { fieldLabelClass, fieldInputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
+import { cn } from "@/lib/utils";
 import { formatDateBR, formatDateTimeBR } from "@/lib/format";
 import { updateLeadDetailsAction, deleteLeadAction } from "@/lib/actions/leads";
 import { LEAD_STATUS_STYLE, DEAL_STATUS_STYLE } from "@/lib/status-colors";
@@ -37,6 +38,13 @@ interface LeadDetailPanelProps {
   /** Called after a successful excluir — the parent (LeadsBoard) drops the
    * lead from its local list; this panel just closes itself. */
   onDeleted: (id: string) => void;
+  /** Quick actions (per explicit user request) — same handlers the Kanban
+   * card already wires (leads-board.tsx's setDealModalLead/
+   * handleSendFirstContactEmail), just reachable from the detail popup too. */
+  onScheduleMeeting: () => void;
+  onSendFirstContactEmail: () => void;
+  sendingFirstContactEmail: boolean;
+  firstContactEmailSent: boolean;
 }
 
 const LEAD_STATUS_OPTIONS: LeadStatus[] = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"];
@@ -53,7 +61,22 @@ const LEAD_STATUS_OPTIONS: LeadStatus[] = ["novo", "em_atendimento", "follow_up"
 // what lets `useState(lead)` initialize fresh per-lead without a
 // prop-to-state sync effect (an anti-pattern: see
 // react-hooks/set-state-in-effect).
-export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs, currentUserRole, onClose, onSaved, onDeleted }: LeadDetailPanelProps) {
+export function LeadDetailPanel({
+  lead,
+  attribution,
+  deal,
+  closer,
+  niches,
+  sdrs,
+  currentUserRole,
+  onClose,
+  onSaved,
+  onDeleted,
+  onScheduleMeeting,
+  onSendFirstContactEmail,
+  sendingFirstContactEmail,
+  firstContactEmailSent,
+}: LeadDetailPanelProps) {
   const [form, setForm] = useState(lead);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -122,21 +145,54 @@ export function LeadDetailPanel({ lead, attribution, deal, closer, niches, sdrs,
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    // Centered, height-capped popup (per explicit user request) — not a
+    // full-height edge-anchored drawer anymore, so it doesn't cover the
+    // whole screen the way the old version did.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-hairline bg-bg-secondary p-6"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-y-auto rounded-2xl border border-hairline bg-bg-secondary p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <h2 className="text-lg font-semibold text-primary">{lead.nome}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-muted transition hover:bg-white/5 hover:text-primary"
+            className="shrink-0 rounded-md p-1 text-muted transition hover:bg-white/5 hover:text-primary"
             aria-label="Fechar"
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Ações rápidas — mesmos handlers do card do kanban
+            (kanban/lead-card.tsx), agora também aqui no popup. */}
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={onScheduleMeeting} className={cn(secondaryButtonClass, "flex items-center gap-1.5")}>
+            <CalendarPlus size={14} />
+            Agendar reunião
+          </button>
+          {lead.email && (
+            <button
+              type="button"
+              onClick={onSendFirstContactEmail}
+              disabled={sendingFirstContactEmail}
+              className={cn(
+                secondaryButtonClass,
+                "flex items-center gap-1.5",
+                firstContactEmailSent && "border-status-good/50 text-status-good"
+              )}
+            >
+              {sendingFirstContactEmail ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : firstContactEmailSent ? (
+                <MailCheck size={14} />
+              ) : (
+                <Mail size={14} />
+              )}
+              {firstContactEmailSent ? "E-mail enviado" : "Enviar e-mail"}
+            </button>
+          )}
         </div>
 
         <section className="flex flex-col gap-4">

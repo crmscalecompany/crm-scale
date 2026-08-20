@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { ALL_COLUMNS, COLUMN_EDIT, renderColumnCell, type ColumnContext, type PersonRef } from "@/lib/leads-table-columns";
 import { EditableCell, type EditableOption } from "@/components/leads/editable-cell";
 import { CollapsibleSection } from "@/components/kanban/grouped-table";
 import { LEAD_STATUS_STYLE, DEAL_STATUS_STYLE } from "@/lib/status-colors";
-import { fieldInputClass, primaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/lib/types/database.types";
 
@@ -21,7 +20,10 @@ interface LeadsTableProps {
   dealByLeadId: Map<string, Deal>;
   onRowClick: (lead: Lead) => void;
   visibleColumns: Set<string>;
-  onNewLead: () => void;
+  /** Owned by leads-board.tsx now — the search box lives in the shared
+   * page header (title/search/filtros/view-toggle/Novo lead all in one
+   * row) instead of a row inside this table. */
+  search: string;
   /** "Agrupado" mode (leads-board.tsx's third view toggle) — collapsible
    * sections by lead.status, same grouping the SDR pipeline's own Tabela
    * view already uses (components/kanban/grouped-table.tsx), just with
@@ -74,12 +76,11 @@ const CELL_DIVIDER = "border-r border-hairline-strong last:border-r-0";
 // Filtros. Whatever isn't shown here is still available in the row-click
 // detail panel (lead-detail-panel.tsx).
 //
-// Filtering (LeadsFilters), column visibility (ColumnPicker), and the view
-// tabs (CrmViewTabs) all live one level up, in CrmWorkspace's toolbar —
-// they're not table-specific (a filter applies to the Kanban view too), so
-// this component only owns what's genuinely local to the table: search,
-// row selection, and "+ Novo lead" (which takes the toolbar slot the
-// column picker used to occupy here).
+// Filtering (LeadsFilters), column visibility (ColumnPicker), search, view
+// toggle, and "+ Novo lead" all live one level up now, in leads-board.tsx's
+// unified page header — they're not table-specific (a filter/search applies
+// to the Kanban view too). This component only owns what's genuinely local
+// to the table itself: row selection and bulk delete.
 //
 // Etapa merges leads and deals visually (per the Monday board, where a
 // converted lead just shows its deal's status): a lead with an associated
@@ -99,7 +100,7 @@ export function LeadsTable({
   dealByLeadId,
   onRowClick,
   visibleColumns,
-  onNewLead,
+  search,
   grouped = false,
   currentUserRole,
   onBulkDelete,
@@ -107,7 +108,6 @@ export function LeadsTable({
   onCreateNiche,
   onEtapaChange,
 }: LeadsTableProps) {
-  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -276,56 +276,39 @@ export function LeadsTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full max-w-xs">
-          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Pesquisar por nome ou empresa…"
-            className={cn(fieldInputClass, "w-full pl-8")}
-          />
-        </div>
-        {!grouped && selected.size > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-accent-primary/15 px-3 py-1 text-xs font-medium text-accent-light">
-              {selected.size} selecionado{selected.size > 1 ? "s" : ""}
-            </span>
-            {currentUserRole === "admin" &&
-              (confirmingBulkDelete ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-status-critical">Excluir {selected.size} lead(s)?</span>
-                  <button
-                    type="button"
-                    onClick={handleBulkDelete}
-                    disabled={bulkDeleting}
-                    className="rounded-lg border border-status-critical/50 px-3 py-1.5 text-xs font-semibold text-status-critical transition hover:bg-status-critical/10 disabled:opacity-60"
-                  >
-                    {bulkDeleting ? "Excluindo…" : "Sim, excluir"}
-                  </button>
-                  <button type="button" onClick={() => setConfirmingBulkDelete(false)} className="text-xs text-muted hover:text-primary">
-                    Cancelar
-                  </button>
-                </div>
-              ) : (
+      {!grouped && selected.size > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-accent-primary/15 px-3 py-1 text-xs font-medium text-accent-light">
+            {selected.size} selecionado{selected.size > 1 ? "s" : ""}
+          </span>
+          {currentUserRole === "admin" &&
+            (confirmingBulkDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-status-critical">Excluir {selected.size} lead(s)?</span>
                 <button
                   type="button"
-                  onClick={() => setConfirmingBulkDelete(true)}
-                  className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs text-muted transition hover:text-status-critical"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="rounded-lg border border-status-critical/50 px-3 py-1.5 text-xs font-semibold text-status-critical transition hover:bg-status-critical/10 disabled:opacity-60"
                 >
-                  <Trash2 size={13} />
-                  Excluir selecionados
+                  {bulkDeleting ? "Excluindo…" : "Sim, excluir"}
                 </button>
-              ))}
-          </div>
-        )}
-        <div className="ml-auto">
-          <button type="button" onClick={onNewLead} className={cn(primaryButtonClass, "flex items-center gap-1.5")}>
-            <Plus size={14} />
-            Novo lead
-          </button>
+                <button type="button" onClick={() => setConfirmingBulkDelete(false)} className="text-xs text-muted hover:text-primary">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingBulkDelete(true)}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs text-muted transition hover:text-status-critical"
+              >
+                <Trash2 size={13} />
+                Excluir selecionados
+              </button>
+            ))}
         </div>
-      </div>
+      )}
 
       {grouped ? (
         <div className="flex flex-col gap-3">

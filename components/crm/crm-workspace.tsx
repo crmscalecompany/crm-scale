@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { CrmViewTabs } from "@/components/crm/crm-view-tabs";
 import { LeadsFilters } from "@/components/leads/leads-filters";
 import { PersonFilter } from "@/components/leads/person-filter";
 import { EventoFilter } from "@/components/leads/evento-filter";
@@ -82,7 +81,7 @@ interface CrmWorkspaceProps {
 }
 
 // Which `origem` values count as each lane for the Quadro Orgânico/Quadro
-// de Tráfego tabs (see crm-view-tabs.tsx's CRM_VIEWS comment for why these
+// de Tráfego tabs (see app-sidebar.tsx's CRM_VIEWS comment for why these
 // exist despite the earlier "Análise Tráfego" rejection). Values must match
 // exactly what writes `leads.origem` — the site's own webhooks
 // (app/api/v1/webhooks/{blog,cases,contato}/route.ts) for orgânico.
@@ -101,17 +100,15 @@ const ORIGEM_TRAFEGO = ["Meta Ads"];
 // automaticamente, sem precisar de uma nova aba por evento.
 const ORIGEM_LIVE = ["Site — Live"];
 
-// The single real screen inside app/(app). Two independent nav levels:
-// - AppSidebar switches between *products* (CRM / Atendimento / Automações
-//   — only CRM exists so far).
-// - CrmViewTabs (in the toolbar below, next to the filter) switches between
-//   *views of the CRM product* (Quadro principal / Orgânico / Tráfego /
-//   Negócios / future saved views) — these aren't sidebar items because
-//   they're specific to this one product, not top-level sections. Table vs.
-//   Kanban is a further toggle *inside* each Quadro tab now (leads-board.tsx),
-//   not one of these — see crm-view-tabs.tsx's CRM_VIEWS comment for why.
-// LeadsBoard/DealsBoard keep owning their own data/mutation state; this
-// just decides which one is mounted and owns the filter both share.
+// The single real screen inside app/(app). AppSidebar owns both nav groups
+// now (see app-sidebar.tsx): CRM_VIEWS on top switches between *views of
+// the CRM product* (Quadro principal / Orgânico / Tráfego / Negócios /
+// SDR's / Closer's / Lixeira), SIDEBAR_SECTIONS on the bottom switches
+// between *other products* (Comissões / Atendimento / Automações). Table
+// vs. Kanban is a further toggle *inside* each Quadro tab (leads-table.tsx's
+// header), not a nav item. LeadsBoard/DealsBoard keep owning their own
+// data/mutation state; this just decides which one is mounted and owns the
+// filters/page-header controls both share.
 export function CrmWorkspace({
   leads,
   totalLeads,
@@ -162,7 +159,7 @@ export function CrmWorkspace({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Each board (SdrPipelineBoard/CloserPipelineBoard especially) self-fetches
-  // on mount. Switching CrmViewTabs used to conditionally *mount* whichever
+  // on mount. Switching views used to conditionally *mount* whichever
   // view was active, so React unmounted the previous one and every return
   // visit re-fetched from scratch — the "troca entre telas demora" the user
   // hit. Once a view has been visited, it stays mounted (just hidden via
@@ -184,6 +181,9 @@ export function CrmWorkspace({
   }
 
   function selectView(view: string) {
+    // Sidebar's top group (CRM_VIEWS) is reachable from any section now,
+    // not just while already inside "crm" — see app-sidebar.tsx.
+    selectSection("crm");
     setActiveView(view);
     setVisitedViews((prev) =>
       prev.has(view) ? prev : new Set(prev).add(view),
@@ -198,10 +198,33 @@ export function CrmWorkspace({
     );
   }
 
+  // Filter controls shared by the four Quadro boards' page headers
+  // (rendered inside leads-board.tsx, next to the title/search/view-toggle/
+  // Novo-lead — per explicit user request, one header row per page rather
+  // than a separate toolbar row above the board). Built once here since all
+  // four read/write the same `filters`/`month` state this component owns.
+  const headerFilters = (
+    <>
+      <MonthFilter month={month} onChange={setMonth} defaultMonth={currentMonthInBrazil()} />
+      <LeadsFilters filters={filters} onChange={setFilters} niches={niches} />
+      <PersonFilter selectedId={filters.owner_sdr_id} onChange={(id) => setFilters({ ...filters, owner_sdr_id: id })} people={sdrs} />
+      {/* Only Quadro Live's board actually applies `evento` below — writes
+          to the same shared `filters` state as every other header control,
+          so the other three boards explicitly null it back out (see each
+          board's `filters` prop). */}
+      {activeView === "quadro_live" && (
+        <EventoFilter selected={filters.evento} onChange={(evento) => setFilters({ ...filters, evento })} eventos={eventos} />
+      )}
+      <ColumnPicker visible={visibleColumns} onChange={setVisibleColumns} onReset={() => setVisibleColumns(new Set(DEFAULT_VISIBLE_COLUMNS))} />
+    </>
+  );
+
   return (
     <div className="flex min-h-screen">
       <AppSidebar
         activeSection={activeSection}
+        activeView={activeView}
+        onSelectView={selectView}
         onSelectSection={selectSection}
         userName={currentUserName}
         userRole={currentUserRole}
@@ -225,52 +248,6 @@ export function CrmWorkspace({
         <main className="px-4 py-6 sm:px-6">
           {activeSection === "crm" && (
             <>
-              <div className="mb-4 flex flex-wrap items-center gap-3">
-                <CrmViewTabs active={activeView} onSelect={selectView} />
-                {(activeView === "quadro_principal" ||
-                  activeView === "quadro_organico" ||
-                  activeView === "quadro_trafego" ||
-                  activeView === "quadro_live") && (
-                  <>
-                    <MonthFilter
-                      month={month}
-                      onChange={setMonth}
-                      defaultMonth={currentMonthInBrazil()}
-                    />
-                    <LeadsFilters
-                      filters={filters}
-                      onChange={setFilters}
-                      niches={niches}
-                    />
-                    <PersonFilter
-                      selectedId={filters.owner_sdr_id}
-                      onChange={(id) =>
-                        setFilters({ ...filters, owner_sdr_id: id })
-                      }
-                      people={sdrs}
-                    />
-                    {/* Only Quadro Live's board actually applies `evento`
-                        below — writes to the same shared `filters` state as
-                        every other toolbar control, so the other three
-                        boards explicitly null it back out. */}
-                    {activeView === "quadro_live" && (
-                      <EventoFilter
-                        selected={filters.evento}
-                        onChange={(evento) => setFilters({ ...filters, evento })}
-                        eventos={eventos}
-                      />
-                    )}
-                    <ColumnPicker
-                      visible={visibleColumns}
-                      onChange={setVisibleColumns}
-                      onReset={() =>
-                        setVisibleColumns(new Set(DEFAULT_VISIBLE_COLUMNS))
-                      }
-                    />
-                  </>
-                )}
-              </div>
-
               {visitedViews.has("quadro_principal") && (
                 <div
                   className={
@@ -278,6 +255,8 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
+                    title="Quadro principal"
+                    headerControls={headerFilters}
                     initialLeads={leads}
                     totalLeads={totalLeads}
                     niches={niches}
@@ -305,6 +284,8 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
+                    title="Quadro Orgânico"
+                    headerControls={headerFilters}
                     initialLeads={[]}
                     totalLeads={0}
                     niches={niches}
@@ -332,6 +313,8 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
+                    title="Quadro de Tráfego"
+                    headerControls={headerFilters}
                     initialLeads={[]}
                     totalLeads={0}
                     niches={niches}
@@ -359,6 +342,8 @@ export function CrmWorkspace({
                   }
                 >
                   <LeadsBoard
+                    title="Quadro Live"
+                    headerControls={headerFilters}
                     initialLeads={[]}
                     totalLeads={0}
                     niches={niches}

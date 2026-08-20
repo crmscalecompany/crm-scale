@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LayoutGrid, Layers, Table2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { LayoutGrid, Layers, Plus, Search, Table2 } from "lucide-react";
 import { KanbanBoard, type KanbanColumnDef } from "@/components/kanban/kanban-board";
 import { LeadCard } from "@/components/kanban/lead-card";
 import { LeadsTable } from "@/components/leads/leads-table";
@@ -23,7 +23,7 @@ import {
 } from "@/lib/actions/leads";
 import { moveDealAction } from "@/lib/actions/deals";
 import { createNicheAction } from "@/lib/actions/niches";
-import { primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
+import { fieldInputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
 import type { Database, LeadStatus, DealStatus } from "@/lib/types/database.types";
 
@@ -68,6 +68,15 @@ interface Niche {
 }
 
 interface LeadsBoardProps {
+  /** Shown at the top of this board's page header, alongside the search
+   * toggle/view switcher/"Novo lead" this component already owns — e.g.
+   * "Quadro principal", "Quadro Live". */
+  title: string;
+  /** Filter controls (MonthFilter/LeadsFilters/PersonFilter/EventoFilter/
+   * ColumnPicker) — owned by CrmWorkspace since they read/write the
+   * `filters`/`month` state shared across all four Quadro boards, but
+   * rendered here so the whole page header is one row instead of two. */
+  headerControls: ReactNode;
   initialLeads: Lead[];
   totalLeads: number;
   niches: Niche[];
@@ -112,6 +121,8 @@ interface LeadsBoardProps {
 // props) because "Carregar mais" and filtering both need to replace/extend
 // them — see handleLoadMore and the filters effect below.
 export function LeadsBoard({
+  title,
+  headerControls,
   initialLeads,
   totalLeads: initialTotalLeads,
   niches,
@@ -129,7 +140,11 @@ export function LeadsBoard({
   visibleColumns,
   onNicheCreated,
 }: LeadsBoardProps) {
-  const [view, setView] = useState<"table" | "grouped" | "kanban">("table");
+  // Defaults to "grouped" (por Etapa), not the flat table — per explicit
+  // user request, matching how an SDR actually scans a pipeline.
+  const [view, setView] = useState<"table" | "grouped" | "kanban">("grouped");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [leads, setLeads] = useState(initialLeads);
   const [totalLeads, setTotalLeads] = useState(initialTotalLeads);
   const [deals, setDeals] = useState(initialDeals);
@@ -358,6 +373,14 @@ export function LeadsBoard({
 
   const detailDeal = detailLead ? (dealByLeadId.get(detailLead.id) ?? null) : null;
 
+  // LeadsTable applies `search` itself (leads-table.tsx's `filtered`); the
+  // Kanban view needs the same treatment done here instead, since it skips
+  // LeadsTable entirely.
+  const searchQuery = search.trim().toLowerCase();
+  const kanbanLeads = searchQuery
+    ? leads.filter((l) => l.nome.toLowerCase().includes(searchQuery) || (l.empresa ?? "").toLowerCase().includes(searchQuery))
+    : leads;
+
   return (
     <div>
       {error && (
@@ -369,48 +392,86 @@ export function LeadsBoard({
         </div>
       )}
 
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex w-fit rounded-lg border border-hairline p-0.5 text-sm">
-          <button
-            type="button"
-            onClick={() => setView("table")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
-              view === "table" ? "bg-accent-primary/20 text-primary" : "text-secondary"
-            )}
-          >
-            <Table2 size={14} />
-            Tabela
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("grouped")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
-              view === "grouped" ? "bg-accent-primary/20 text-primary" : "text-secondary"
-            )}
-          >
-            <Layers size={14} />
-            Agrupado
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("kanban")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
-              view === "kanban" ? "bg-accent-primary/20 text-primary" : "text-secondary"
-            )}
-          >
-            <LayoutGrid size={14} />
-            Kanban
+      {/* One page-header row per explicit user request — title, then every
+          control (search/filtros/view toggle/Novo lead) on the right,
+          instead of a separate toolbar row above the table plus another
+          row inside it. */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-primary">{title}</h1>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {searchOpen ? (
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onBlur={() => {
+                  if (!search) setSearchOpen(false);
+                }}
+                placeholder="Pesquisar por nome ou empresa…"
+                className={cn(fieldInputClass, "w-56 pl-8")}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className={cn(secondaryButtonClass, "px-2.5")}
+              aria-label="Pesquisar"
+              title="Pesquisar"
+            >
+              <Search size={14} />
+            </button>
+          )}
+
+          {headerControls}
+
+          <div className="flex rounded-lg border border-hairline p-0.5 text-sm">
+            <button
+              type="button"
+              onClick={() => setView("table")}
+              title="Tabela"
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
+                view === "table" ? "bg-accent-primary/20 text-primary" : "text-secondary"
+              )}
+            >
+              <Table2 size={14} />
+              <span className="hidden lg:inline">Tabela</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("grouped")}
+              title="Agrupado"
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
+                view === "grouped" ? "bg-accent-primary/20 text-primary" : "text-secondary"
+              )}
+            >
+              <Layers size={14} />
+              <span className="hidden lg:inline">Agrupado</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("kanban")}
+              title="Kanban"
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1 transition",
+                view === "kanban" ? "bg-accent-primary/20 text-primary" : "text-secondary"
+              )}
+            >
+              <LayoutGrid size={14} />
+              <span className="hidden lg:inline">Kanban</span>
+            </button>
+          </div>
+
+          <button type="button" onClick={() => setShowCreateLead(true)} className={cn(primaryButtonClass, "flex items-center gap-1.5")}>
+            <Plus size={14} />
+            Novo lead
           </button>
         </div>
-
-        {view === "kanban" && (
-          <button type="button" onClick={() => setShowCreateLead(true)} className={primaryButtonClass}>
-            + Novo lead
-          </button>
-        )}
       </div>
 
       {view !== "kanban" ? (
@@ -424,7 +485,7 @@ export function LeadsBoard({
               dealByLeadId={dealByLeadId}
               onRowClick={setDetailLead}
               visibleColumns={visibleColumns}
-              onNewLead={() => setShowCreateLead(true)}
+              search={search}
               grouped={view === "grouped"}
               currentUserRole={currentUserRole}
               onBulkDelete={handleBulkDelete}
@@ -447,7 +508,7 @@ export function LeadsBoard({
       ) : (
         <KanbanBoard
           columns={LEAD_COLUMNS}
-          items={leads}
+          items={kanbanLeads}
           onMove={handleMove}
           renderCard={(lead) => (
             <LeadCard
@@ -552,6 +613,10 @@ export function LeadsBoard({
           setLeads((prev) => prev.filter((l) => l.id !== id));
           setTotalLeads((prev) => Math.max(0, prev - 1));
         }}
+        onScheduleMeeting={() => detailLead && setDealModalLead(detailLead)}
+        onSendFirstContactEmail={() => detailLead && handleSendFirstContactEmail(detailLead.id)}
+        sendingFirstContactEmail={!!detailLead && sendingEmailId === detailLead.id}
+        firstContactEmailSent={!!detailLead && sentEmailIds.has(detailLead.id)}
       />
     </div>
   );
