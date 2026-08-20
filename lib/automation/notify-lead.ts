@@ -11,11 +11,12 @@ type Lead = Database["public"]["Tables"]["leads"]["Row"];
 // whenever a future worker gets built.
 //
 // Failure here must never fail the request: the lead is already saved by
-// the time this runs, so a WhatsApp/Z-API hiccup should only be logged.
+// the time this runs, so a WhatsApp/Evolution API hiccup should only be
+// logged.
 export async function notifyLeadGroup(lead: Lead, sourceLabel: string): Promise<void> {
-  const groupId = process.env.ZAPI_LEADS_GROUP_ID;
+  const groupId = process.env.EVOLUTION_LEADS_GROUP_JID;
   if (!groupId) {
-    console.warn("[notifyLeadGroup] ZAPI_LEADS_GROUP_ID não configurado — notificação pulada.");
+    console.warn("[notifyLeadGroup] EVOLUTION_LEADS_GROUP_JID não configurado — notificação pulada.");
     return;
   }
 
