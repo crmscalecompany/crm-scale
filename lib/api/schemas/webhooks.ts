@@ -25,3 +25,17 @@ export const contatoLeadSchema = z.object({
   instagram: z.string().nullish(),
   faturamento_mensal: z.string().nullish(),
 });
+
+// LP de inscrição para lives — os 4 campos do form são obrigatórios lá
+// (diferente do form de contato, onde só nome/whatsapp são obrigatórios).
+// UTMs são opcionais — a LP manda, mas nem todo tráfego chega com eles
+// (ex: link direto, WhatsApp).
+export const liveLeadSchema = z.object({
+  nome: z.string().min(1, "nome é obrigatório"),
+  whatsapp: z.string().min(1, "whatsapp é obrigatório"),
+  email: z.string().email("email inválido"),
+  faturamento: z.string().min(1, "faturamento é obrigatório"),
+  utm_source: z.string().nullish(),
+  utm_medium: z.string().nullish(),
+  utm_campaign: z.string().nullish(),
+});

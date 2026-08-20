@@ -1,6 +1,6 @@
 "use client";
 
-import { Handshake, Megaphone, Phone, Sprout, Table2, Target, Trash2 } from "lucide-react";
+import { Handshake, Megaphone, Phone, Sprout, Table2, Target, Trash2, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CrmViewDef {
@@ -41,6 +41,9 @@ export const CRM_VIEWS: CrmViewDef[] = [
   { key: "quadro_principal", label: "Quadro principal", icon: Table2, enabled: true },
   { key: "quadro_organico", label: "Quadro Orgânico", icon: Sprout, enabled: true },
   { key: "quadro_trafego", label: "Quadro de Tráfego", icon: Megaphone, enabled: true },
+  // Leads de LPs de live/evento (origem "Site — Live", see crm-workspace.tsx's
+  // ORIGEM_LIVE) — painel fixo e reutilizável, não específico de uma live só.
+  { key: "quadro_live", label: "Quadro Live", icon: Video, enabled: true },
   { key: "negocios", label: "Negócios", icon: Handshake, enabled: true },
   { key: "sdrs", label: "SDR's", icon: Phone, enabled: true },
   { key: "closers", label: "Closer's", icon: Target, enabled: true },

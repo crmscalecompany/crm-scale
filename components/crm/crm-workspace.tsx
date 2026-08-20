@@ -15,6 +15,7 @@ import { SdrPipelineBoard } from "@/components/leads/sdr-pipeline-board";
 import { CloserPipelineBoard } from "@/components/deals/closer-pipeline-board";
 import { CommissionsView } from "@/components/commissions/commissions-view";
 import { NotifySubscribersView } from "@/components/automations/notify-subscribers-view";
+import { AutomationsOverview } from "@/components/automations/automations-overview";
 import { LeadsTrash } from "@/components/leads/leads-trash";
 import type { LeadFilters } from "@/lib/actions/leads";
 import { DEFAULT_VISIBLE_COLUMNS } from "@/lib/leads-table-columns";
@@ -91,6 +92,10 @@ interface CrmWorkspaceProps {
 // neither board — only what the user explicitly named.
 const ORIGEM_ORGANICO = ["Site — Blog", "Site — Cases", "Site — Contato"];
 const ORIGEM_TRAFEGO = ["Meta Ads"];
+// Leads de LPs de live/evento (app/api/v1/webhooks/live/route.ts) — painel
+// fixo e reutilizável: toda live futura que usar essa mesma origem cai aqui
+// automaticamente, sem precisar de uma nova aba por evento.
+const ORIGEM_LIVE = ["Site — Live"];
 
 // The single real screen inside app/(app). Two independent nav levels:
 // - AppSidebar switches between *products* (CRM / Atendimento / Automações
@@ -219,7 +224,8 @@ export function CrmWorkspace({
                 <CrmViewTabs active={activeView} onSelect={selectView} />
                 {(activeView === "quadro_principal" ||
                   activeView === "quadro_organico" ||
-                  activeView === "quadro_trafego") && (
+                  activeView === "quadro_trafego" ||
+                  activeView === "quadro_live") && (
                   <>
                     <MonthFilter
                       month={month}
@@ -330,6 +336,33 @@ export function CrmWorkspace({
                 </div>
               )}
 
+              {visitedViews.has("quadro_live") && (
+                <div
+                  className={
+                    activeView === "quadro_live" ? undefined : "hidden"
+                  }
+                >
+                  <LeadsBoard
+                    initialLeads={[]}
+                    totalLeads={0}
+                    niches={niches}
+                    sdrs={sdrs}
+                    closers={closers}
+                    reasons={sdrReasons}
+                    lostReasons={sdrLostReasons}
+                    closerLostReasons={closerLostReasons}
+                    qualifiedLeadIds={[]}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    attributions={[]}
+                    deals={[]}
+                    filters={{ ...effectiveFilters, origem_in: ORIGEM_LIVE }}
+                    visibleColumns={visibleColumns}
+                    onNicheCreated={handleNicheCreated}
+                  />
+                </div>
+              )}
+
               {visitedViews.has("negocios") && (
                 <div className={activeView === "negocios" ? undefined : "hidden"}>
                   <DealsBoard
@@ -394,7 +427,12 @@ export function CrmWorkspace({
             <div
               className={activeSection === "automacoes" ? undefined : "hidden"}
             >
-              <NotifySubscribersView currentUserRole={currentUserRole} />
+              <div className="flex flex-col gap-8">
+                <AutomationsOverview />
+                <div className="border-t border-hairline pt-8">
+                  <NotifySubscribersView currentUserRole={currentUserRole} />
+                </div>
+              </div>
             </div>
           )}
         </main>

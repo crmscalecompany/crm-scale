@@ -432,6 +432,9 @@ export type Database = {
           lead_id: string
           lead_id_ads: string | null
           publico: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
         }
         Insert: {
           campanha?: string | null
@@ -442,6 +445,9 @@ export type Database = {
           lead_id: string
           lead_id_ads?: string | null
           publico?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Update: {
           campanha?: string | null
@@ -452,6 +458,9 @@ export type Database = {
           lead_id?: string
           lead_id_ads?: string | null
           publico?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Relationships: [
           {
