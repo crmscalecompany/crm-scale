@@ -386,8 +386,11 @@ export function CrmWorkspace({
                     niches={niches}
                     reasons={sdrReasons}
                     lostReasons={sdrLostReasons}
+                    closerLostReasons={closerLostReasons}
                     currentUserId={currentUserId}
                     currentUserRole={currentUserRole}
+                    visibleColumns={visibleColumns}
+                    onNicheCreated={handleNicheCreated}
                   />
                 </div>
               )}

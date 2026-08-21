@@ -205,7 +205,7 @@ export function LeadsTable({
         )}
       >
         {showCheckbox && (
-          <td className={cn("px-4 py-3", CELL_DIVIDER)} onClick={(e) => e.stopPropagation()}>
+          <td className={cn("sticky left-0 z-10 w-10 bg-canvas px-4 py-3", CELL_DIVIDER)} onClick={(e) => e.stopPropagation()}>
             <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleOne(lead.id)} aria-label={`Selecionar ${lead.nome}`} />
           </td>
         )}
@@ -298,7 +298,18 @@ export function LeadsTable({
               className={cn(
                 "max-w-[200px] cursor-pointer truncate whitespace-nowrap px-4 py-3 text-secondary",
                 CELL_DIVIDER,
-                col.key === "nome" && "font-medium text-primary"
+                col.key === "nome" && "font-medium text-primary",
+                // Sticky Lead column (per explicit user request — "scroll
+                // lateral" shouldn't carry the row's identity out of view).
+                // Needs its own opaque background since sticky positioning
+                // takes it out of the row's normal paint order — bg-canvas
+                // (the page's own base color) rather than trying to match
+                // every dynamic row state (zebra/hover/stage accent).
+                // left-[46px], not the nominal w-10 (40px) — the checkbox
+                // <td> actually renders 46px wide (measured against the
+                // real DOM); using 40px left a 6px sliver where scrolled
+                // content behind the sticky column peeked through.
+                col.key === "nome" && cn("sticky z-10 bg-canvas", showCheckbox ? "left-[46px]" : "left-0")
               )}
               onClick={() => onRowClick(lead)}
             >
@@ -356,11 +367,18 @@ export function LeadsTable({
                   <p className="px-4 py-3 text-sm text-muted">Nenhum lead.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-sm">
+                    <table className="w-full border-separate border-spacing-0 text-sm">
                       <thead>
                         <tr className="border-b border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
                           {columns.map((col) => (
-                            <th key={col.key} className={cn("max-w-[200px] truncate whitespace-nowrap px-4 py-3", CELL_DIVIDER)}>
+                            <th
+                              key={col.key}
+                              className={cn(
+                                "max-w-[200px] truncate whitespace-nowrap px-4 py-3",
+                                CELL_DIVIDER,
+                                col.key === "nome" && "sticky left-0 z-20 bg-bg-secondary"
+                              )}
+                            >
                               {col.label}
                             </th>
                           ))}
@@ -382,14 +400,21 @@ export function LeadsTable({
            structured/sturdy without looking like a stray rectangle. Header
            is solid (not glass/translucent) on purpose, same reasoning. */
         <div className="overflow-x-auto rounded-lg border-2 border-hairline-strong">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr className="border-b-2 border-hairline-strong bg-bg-secondary text-left text-xs font-semibold uppercase tracking-wide text-secondary">
-                <th className={cn("w-10 px-4 py-3", CELL_DIVIDER)}>
+                <th className={cn("sticky left-0 z-20 w-10 bg-bg-secondary px-4 py-3", CELL_DIVIDER)}>
                   <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} aria-label="Selecionar todos" />
                 </th>
                 {columns.map((col) => (
-                  <th key={col.key} className={cn("max-w-[200px] truncate whitespace-nowrap px-4 py-3", CELL_DIVIDER)}>
+                  <th
+                    key={col.key}
+                    className={cn(
+                      "max-w-[200px] truncate whitespace-nowrap px-4 py-3",
+                      CELL_DIVIDER,
+                      col.key === "nome" && "sticky left-[46px] z-20 bg-bg-secondary"
+                    )}
+                  >
                     {col.label}
                   </th>
                 ))}
