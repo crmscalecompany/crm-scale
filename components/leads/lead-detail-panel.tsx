@@ -145,12 +145,14 @@ export function LeadDetailPanel({
   }
 
   return createPortal(
-    // Centered, height-capped popup (per explicit user request) — not a
-    // full-height edge-anchored drawer anymore, so it doesn't cover the
-    // whole screen the way the old version did.
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+    // Anchored to the table's top-right corner, height-capped, no backdrop
+    // (per explicit user request) — doesn't dim/cover the sidebar or the
+    // rest of the CRM the way a centered modal-with-overlay did. The outer
+    // div is just an invisible full-page click target for "click outside
+    // to close"; it paints nothing itself.
+    <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-y-auto rounded-2xl border border-hairline bg-bg-secondary p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+        className="absolute right-4 top-20 flex max-h-[80vh] w-full max-w-lg flex-col overflow-y-auto rounded-2xl border border-hairline bg-bg-secondary p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -195,8 +197,10 @@ export function LeadDetailPanel({
           )}
         </div>
 
+        {/* Categorizado por explicit user request — antes era um único
+            "Dados do lead" misturando contato/classificação/pipeline. */}
         <section className="flex flex-col gap-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Dados do lead</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Dados pessoais</h3>
 
           <Field id="nome" label="Nome">
             <input id="nome" value={form.nome} onChange={(e) => set("nome", e.target.value)} className={fieldInputClass} />
@@ -255,6 +259,12 @@ export function LeadDetailPanel({
               />
             </Field>
           </div>
+        </section>
+
+        <div className="my-6 border-t border-hairline" />
+
+        <section className="flex flex-col gap-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Classificação</h3>
 
           <div className="grid grid-cols-2 gap-3">
             <Field id="niche_id" label="Nicho">
@@ -338,6 +348,12 @@ export function LeadDetailPanel({
               rows={3}
             />
           </Field>
+        </section>
+
+        <div className="my-6 border-t border-hairline" />
+
+        <section className="flex flex-col gap-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Pipeline</h3>
 
           <div className="grid grid-cols-2 gap-3">
             <Field id="owner_sdr_id" label="SDR responsável">
@@ -378,7 +394,7 @@ export function LeadDetailPanel({
 
         {attribution && (
           <section className="flex flex-col gap-2">
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Atribuição de marketing</h3>
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Campanha</h3>
             <ReadOnlyRow label="Campanha" value={attribution.campanha} />
             <ReadOnlyRow label="Público" value={attribution.publico} />
             <ReadOnlyRow label="Criativo" value={attribution.criativo} />
@@ -394,7 +410,7 @@ export function LeadDetailPanel({
 
         {deal && (
           <section className="mt-6 flex flex-col gap-2">
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Negócio</h3>
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Informações de venda</h3>
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="shrink-0 text-muted">Closer</span>
               {closer ? <PersonInline name={closer.nome} src={closer.foto_url} /> : <span className="text-secondary">—</span>}
