@@ -478,6 +478,80 @@ export type Database = {
           },
         ]
       }
+      lead_update_attachments: {
+        Row: {
+          criado_em: string
+          id: string
+          nome_arquivo: string
+          storage_path: string
+          tamanho_bytes: number | null
+          update_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          nome_arquivo: string
+          storage_path: string
+          tamanho_bytes?: number | null
+          update_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          nome_arquivo?: string
+          storage_path?: string
+          tamanho_bytes?: number | null
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_update_attachments_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "lead_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_updates: {
+        Row: {
+          autor_id: string | null
+          criado_em: string
+          id: string
+          lead_id: string
+          texto: string
+        }
+        Insert: {
+          autor_id?: string | null
+          criado_em?: string
+          id?: string
+          lead_id: string
+          texto: string
+        }
+        Update: {
+          autor_id?: string | null
+          criado_em?: string
+          id?: string
+          lead_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_updates_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_updates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           cargo: string | null

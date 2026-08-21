@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { CalendarPlus, Loader2, Mail, MailCheck, Trash2, X } from "lucide-react";
+import { CalendarPlus, Loader2, Mail, MailCheck, MessageSquareText, Trash2, X } from "lucide-react";
 import { fieldLabelClass, fieldInputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
 import { formatDateBR, formatDateTimeBR } from "@/lib/format";
@@ -45,6 +45,9 @@ interface LeadDetailPanelProps {
   onSendFirstContactEmail: () => void;
   sendingFirstContactEmail: boolean;
   firstContactEmailSent: boolean;
+  /** "Atualizações" quick action — opens LeadUpdatesModal, replacing the
+   * old single "Observação" field with an append-only history. */
+  onOpenUpdates: () => void;
 }
 
 const LEAD_STATUS_OPTIONS: LeadStatus[] = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"];
@@ -76,6 +79,7 @@ export function LeadDetailPanel({
   onSendFirstContactEmail,
   sendingFirstContactEmail,
   firstContactEmailSent,
+  onOpenUpdates,
 }: LeadDetailPanelProps) {
   const [form, setForm] = useState(lead);
   const [error, setError] = useState<string | null>(null);
@@ -117,7 +121,6 @@ export function LeadDetailPanel({
           faturamento_medio: form.faturamento_medio,
           faturamento_medio_label: form.faturamento_medio_label,
           qualificador: form.qualificador,
-          observacao: form.observacao,
           owner_sdr_id: form.owner_sdr_id,
           status: form.status,
         });
@@ -195,6 +198,10 @@ export function LeadDetailPanel({
               {firstContactEmailSent ? "E-mail enviado" : "Enviar e-mail"}
             </button>
           )}
+          <button type="button" onClick={onOpenUpdates} className={cn(secondaryButtonClass, "flex items-center gap-1.5")}>
+            <MessageSquareText size={14} />
+            Atualizações
+          </button>
         </div>
 
         {/* Categorizado por explicit user request — antes era um único
@@ -337,15 +344,6 @@ export function LeadDetailPanel({
               value={form.qualificador ?? ""}
               onChange={(e) => set("qualificador", e.target.value || null)}
               className={fieldInputClass}
-            />
-          </Field>
-          <Field id="observacao" label="Observação">
-            <textarea
-              id="observacao"
-              value={form.observacao ?? ""}
-              onChange={(e) => set("observacao", e.target.value || null)}
-              className={fieldInputClass}
-              rows={3}
             />
           </Field>
         </section>

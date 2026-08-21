@@ -7,6 +7,7 @@ import { LeadCard } from "@/components/kanban/lead-card";
 import { LeadsTable } from "@/components/leads/leads-table";
 import { SortFilter, type SortOrder } from "@/components/leads/sort-filter";
 import { LeadDetailPanel } from "@/components/leads/lead-detail-panel";
+import { LeadUpdatesModal } from "@/components/leads/lead-updates-modal";
 import { CreateLeadModal } from "@/components/kanban/create-lead-modal";
 import { CreateDealModal } from "@/components/kanban/create-deal-modal";
 import { CloseDealModal } from "@/components/kanban/close-deal-modal";
@@ -159,6 +160,7 @@ export function LeadsBoard({
   const [lostDealId, setLostDealId] = useState<string | null>(null);
   const [closeDealId, setCloseDealId] = useState<string | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  const [updatesLead, setUpdatesLead] = useState<{ id: string; nome: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filtering, setFiltering] = useState(false);
@@ -523,6 +525,7 @@ export function LeadsBoard({
               onCreateNiche={handleCreateNiche}
               onEtapaChange={handleEtapaChange}
               onCloserChange={handleCloserChange}
+              onOpenUpdates={(id, nome) => setUpdatesLead({ id, nome })}
             />
           </div>
           <div className="mt-4 flex items-center justify-center gap-3">
@@ -648,7 +651,17 @@ export function LeadsBoard({
         onSendFirstContactEmail={() => detailLead && handleSendFirstContactEmail(detailLead.id)}
         sendingFirstContactEmail={!!detailLead && sendingEmailId === detailLead.id}
         firstContactEmailSent={!!detailLead && sentEmailIds.has(detailLead.id)}
+        onOpenUpdates={() => detailLead && setUpdatesLead({ id: detailLead.id, nome: detailLead.nome })}
       />
+
+      {updatesLead && (
+        <LeadUpdatesModal
+          open={!!updatesLead}
+          onClose={() => setUpdatesLead(null)}
+          leadId={updatesLead.id}
+          leadNome={updatesLead.nome}
+        />
+      )}
     </div>
   );
 }

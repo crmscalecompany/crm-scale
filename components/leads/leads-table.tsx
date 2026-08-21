@@ -57,6 +57,10 @@ interface LeadsTableProps {
    * (closer_id lives on deals, not leads), same precondition Valor/Modelo/
    * the other deal-derived columns already have. */
   onCloserChange: (leadId: string, dealId: string, newCloserId: string | null) => Promise<void>;
+  /** "Atualizações" column — opens LeadUpdatesModal (leads-board.tsx owns
+   * the modal's open/closed state, same division of labor as every other
+   * modal this table's rows can trigger). */
+  onOpenUpdates: (leadId: string, leadNome: string) => void;
 }
 
 const LEAD_STATUS_OPTIONS = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"] as const;
@@ -112,6 +116,7 @@ export function LeadsTable({
   onCreateNiche,
   onEtapaChange,
   onCloserChange,
+  onOpenUpdates,
 }: LeadsTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
@@ -259,6 +264,23 @@ export function LeadsTable({
                   options={editOptions.get("closer")}
                   onSave={(v) => onCloserChange(lead.id, deal.id, v)}
                 />
+              </td>
+            );
+          }
+
+          if (col.key === "atualizacoes") {
+            return (
+              <td key={col.key} className={cn("max-w-[200px] px-4 py-3", CELL_DIVIDER)}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenUpdates(lead.id, lead.nome);
+                  }}
+                  className="flex items-center gap-1.5 text-secondary transition hover:text-primary"
+                >
+                  {cellContent}
+                </button>
               </td>
             );
           }

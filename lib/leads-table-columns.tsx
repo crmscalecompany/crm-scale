@@ -1,3 +1,4 @@
+import { MessageSquareText } from "lucide-react";
 import { DEAL_STATUS_STYLE, LEAD_STATUS_STYLE } from "@/lib/status-colors";
 import { formatBRL, formatDateBR, formatDateTimeBR } from "@/lib/format";
 import { PersonInline } from "@/components/ui/avatar";
@@ -63,7 +64,6 @@ export const COLUMN_EDIT: Partial<Record<string, ColumnEditDef>> = {
   email: { kind: "text", field: "email" },
   insta: { kind: "text", field: "insta" },
   qualificador: { kind: "text", field: "qualificador" },
-  observacao: { kind: "text", field: "observacao" },
   faturamento_medio: { kind: "text", field: "faturamento_medio_label" },
   nicho: { kind: "niche_select", field: "niche_id" },
   sdr: { kind: "sdr_select", field: "owner_sdr_id" },
@@ -100,7 +100,11 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: "data_fechamento", label: "Data de Fechamento" },
   { key: "modelo", label: "Modelo" },
   { key: "janela_fechamento", label: "Janela de Fechamento" },
-  { key: "observacao", label: "Observação" },
+  // Row-dependent like "etapa"/"closer" — opens LeadUpdatesModal instead of
+  // an inline editor, see leads-table.tsx's special-case for this key.
+  // Replaces the old single "Observação" text field with an append-only
+  // history (per explicit user request), so there's no COLUMN_EDIT entry.
+  { key: "atualizacoes", label: "Atualizações" },
 ];
 
 // Every column, shown by default — the user asked for every lead field to
@@ -174,8 +178,17 @@ export function renderColumnCell(key: string, lead: Lead, ctx: ColumnContext): R
       return deal?.modelo || "—";
     case "janela_fechamento":
       return deal?.janela_fechamento || "—";
-    case "observacao":
-      return lead.observacao || "—";
+    case "atualizacoes":
+      // The interactive part (opening LeadUpdatesModal) is wired in
+      // leads-table.tsx's special-case — same row-dependent-behavior
+      // pattern as "etapa"/"closer" — this just supplies the closed-state
+      // display.
+      return (
+        <span className="flex items-center gap-1.5 text-secondary">
+          <MessageSquareText size={14} />
+          Ver
+        </span>
+      );
     case "etapa": {
       const style = deal ? DEAL_STATUS_STYLE[deal.status] : LEAD_STATUS_STYLE[lead.status];
       return <Badge className={cn("whitespace-nowrap px-2.5 py-1 font-semibold", style.className)}>{style.label}</Badge>;
