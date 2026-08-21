@@ -152,8 +152,16 @@ export function CrmWorkspace({
     const range = month ? monthDateRange(month) : { from: undefined, to: undefined };
     return { ...filters, criado_em_from: range.from, criado_em_to: range.to };
   }, [filters, month]);
+  // Versioned key (":v2", not just "crm:leads-table:columns") — per
+  // explicit, repeated user feedback that not every column was showing by
+  // default. The code-level default (DEFAULT_VISIBLE_COLUMNS) was already
+  // correct; a narrower set saved in localStorage from before that fix (or
+  // from someone toggling the picker) silently overrode it forever, since
+  // useLocalStorageSet only falls back to the default when nothing's
+  // saved. Bumping the key forces everyone back to the real default once;
+  // deliberate customizations after that still persist normally.
   const [visibleColumns, setVisibleColumns] = useLocalStorageSet(
-    "crm:leads-table:columns",
+    "crm:leads-table:columns:v2",
     DEFAULT_VISIBLE_COLUMNS,
   );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
