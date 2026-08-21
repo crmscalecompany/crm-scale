@@ -5,6 +5,7 @@ import { LayoutGrid, Layers, Plus, Search, Table2 } from "lucide-react";
 import { KanbanBoard, type KanbanColumnDef } from "@/components/kanban/kanban-board";
 import { LeadCard } from "@/components/kanban/lead-card";
 import { LeadsTable } from "@/components/leads/leads-table";
+import { SortFilter, type SortOrder } from "@/components/leads/sort-filter";
 import { LeadDetailPanel } from "@/components/leads/lead-detail-panel";
 import { CreateLeadModal } from "@/components/kanban/create-lead-modal";
 import { CreateDealModal } from "@/components/kanban/create-deal-modal";
@@ -145,6 +146,7 @@ export function LeadsBoard({
   const [view, setView] = useState<"table" | "grouped" | "kanban">("grouped");
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("recent");
   const [leads, setLeads] = useState(initialLeads);
   const [totalLeads, setTotalLeads] = useState(initialTotalLeads);
   const [deals, setDeals] = useState(initialDeals);
@@ -373,13 +375,24 @@ export function LeadsBoard({
 
   const detailDeal = detailLead ? (dealByLeadId.get(detailLead.id) ?? null) : null;
 
+  // Client-side — a date-bounded Quadro already loads the whole month
+  // (see the effect above), so this is a real full sort there, not just
+  // "reorder whatever page happens to be loaded". Nulls (no criado_em)
+  // sort last regardless of direction, matching listLeads' own ordering.
+  const sortedLeads = [...leads].sort((a, b) => {
+    if (!a.criado_em && !b.criado_em) return 0;
+    if (!a.criado_em) return 1;
+    if (!b.criado_em) return -1;
+    return sortOrder === "recent" ? b.criado_em.localeCompare(a.criado_em) : a.criado_em.localeCompare(b.criado_em);
+  });
+
   // LeadsTable applies `search` itself (leads-table.tsx's `filtered`); the
   // Kanban view needs the same treatment done here instead, since it skips
   // LeadsTable entirely.
   const searchQuery = search.trim().toLowerCase();
   const kanbanLeads = searchQuery
-    ? leads.filter((l) => l.nome.toLowerCase().includes(searchQuery) || (l.empresa ?? "").toLowerCase().includes(searchQuery))
-    : leads;
+    ? sortedLeads.filter((l) => l.nome.toLowerCase().includes(searchQuery) || (l.empresa ?? "").toLowerCase().includes(searchQuery))
+    : sortedLeads;
 
   return (
     <div>
@@ -427,6 +440,8 @@ export function LeadsBoard({
           )}
 
           {headerControls}
+
+          <SortFilter value={sortOrder} onChange={setSortOrder} />
 
           <div className="flex rounded-lg border border-hairline p-0.5 text-sm">
             <button
@@ -478,7 +493,7 @@ export function LeadsBoard({
         <>
           <div className={filtering ? "opacity-50 transition-opacity" : "transition-opacity"}>
             <LeadsTable
-              leads={leads}
+              leads={sortedLeads}
               sdrById={sdrById}
               nicheById={nicheById}
               closerById={closerById}
