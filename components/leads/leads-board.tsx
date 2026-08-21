@@ -22,7 +22,7 @@ import {
   bulkDeleteLeadsAction,
   type LeadFilters,
 } from "@/lib/actions/leads";
-import { moveDealAction } from "@/lib/actions/deals";
+import { moveDealAction, updateDealCloserAction } from "@/lib/actions/deals";
 import { createNicheAction } from "@/lib/actions/niches";
 import { fieldInputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/form-styles";
 import { cn } from "@/lib/utils";
@@ -308,6 +308,21 @@ export function LeadsBoard({
     }
   }
 
+  // Closer's inline picker (leads-table.tsx, per explicit user request) —
+  // same optimistic-update-then-rollback shape as handleEtapaChange's deal
+  // branch above, just for closer_id instead of status.
+  async function handleCloserChange(leadId: string, dealId: string, newCloserId: string | null) {
+    const previous = deals.find((d) => d.id === dealId);
+    if (!previous) return;
+    updateDealLocal(dealId, { closer_id: newCloserId });
+    try {
+      await updateDealCloserAction(dealId, newCloserId);
+    } catch (err) {
+      updateDealLocal(dealId, { closer_id: previous.closer_id });
+      setError(err instanceof Error ? err.message : "Erro ao alterar closer.");
+    }
+  }
+
   // "Excluir selecionados" (leads-table.tsx's row checkboxes). Doesn't
   // optimistically update-then-rollback like the single-field edits above —
   // a batch of N leads failing partway through is rare enough, and the
@@ -507,6 +522,7 @@ export function LeadsBoard({
               onFieldSave={handleFieldSave}
               onCreateNiche={handleCreateNiche}
               onEtapaChange={handleEtapaChange}
+              onCloserChange={handleCloserChange}
             />
           </div>
           <div className="mt-4 flex items-center justify-center gap-3">

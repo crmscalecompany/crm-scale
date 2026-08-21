@@ -53,6 +53,10 @@ interface LeadsTableProps {
    * saving directly, same branching handleMove already does for the
    * Kanban view. */
   onEtapaChange: (leadId: string, dealId: string | null, newStatus: string) => Promise<void>;
+  /** Closer's inline picker — only reachable once the row has a deal
+   * (closer_id lives on deals, not leads), same precondition Valor/Modelo/
+   * the other deal-derived columns already have. */
+  onCloserChange: (leadId: string, dealId: string, newCloserId: string | null) => Promise<void>;
 }
 
 const LEAD_STATUS_OPTIONS = ["novo", "em_atendimento", "follow_up", "reuniao_agendada", "convertido", "perdido"] as const;
@@ -107,6 +111,7 @@ export function LeadsTable({
   onFieldSave,
   onCreateNiche,
   onEtapaChange,
+  onCloserChange,
 }: LeadsTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
@@ -128,6 +133,10 @@ export function LeadsTable({
       "sdr",
       [...sdrById.entries()].map(([id, ref]) => ({ id, label: ref.nome }))
     );
+    map.set(
+      "closer",
+      [...closerById.entries()].map(([id, ref]) => ({ id, label: ref.nome }))
+    );
     for (const field of COMBOBOX_FIELDS) {
       const values = new Set<string>();
       for (const lead of leads) {
@@ -140,7 +149,7 @@ export function LeadsTable({
       );
     }
     return map;
-  }, [leads, nicheById, sdrById]);
+  }, [leads, nicheById, sdrById, closerById]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -222,6 +231,33 @@ export function LeadsTable({
                   display={cellContent}
                   options={etapaOptions}
                   onSave={(v) => onEtapaChange(lead.id, deal?.id ?? null, v as string)}
+                />
+              </td>
+            );
+          }
+
+          if (col.key === "closer") {
+            // Row-dependent like "etapa" above — closer_id lives on
+            // deals, only reachable once one exists (same precondition
+            // Valor/Modelo/the other deal-derived columns already have).
+            // No deal yet: leave the cell exactly as it renders today,
+            // plain "—", non-interactive — "Marcar reunião" stays the one
+            // place a deal gets created.
+            if (!deal) {
+              return (
+                <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
+                  {cellContent}
+                </td>
+              );
+            }
+            return (
+              <td key={col.key} className={cn("max-w-[200px] px-4 py-3 text-secondary", CELL_DIVIDER)}>
+                <EditableCell
+                  kind="closer_select"
+                  value={deal.closer_id ?? ""}
+                  display={cellContent}
+                  options={editOptions.get("closer")}
+                  onSave={(v) => onCloserChange(lead.id, deal.id, v)}
                 />
               </td>
             );

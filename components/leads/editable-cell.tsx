@@ -220,7 +220,7 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
             style={{ position: "fixed", top: popoverPos.top, left: popoverPos.left }}
             className="z-[70] w-64 rounded-card border border-hairline bg-bg-secondary p-2 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
           >
-            {kind !== "sdr_select" && kind !== "status_select" && (
+            {kind !== "sdr_select" && kind !== "closer_select" && kind !== "status_select" && (
               <input
                 ref={filterInputRef}
                 value={filter}
@@ -233,7 +233,11 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
               />
             )}
 
-            <div className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
+            {/* max-h-72 (not the old max-h-56) — per explicit user
+                feedback the SDR list looked cramped, with the last row cut
+                mid-line at the scroll boundary; this fits more rows before
+                a scroll is even needed. */}
+            <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
               {/* No "Limpar" for status_select — status is a required field,
                   a lead/deal always has one. */}
               {kind !== "status_select" && (
@@ -261,7 +265,7 @@ export function EditableCell({ kind, value, display, options = [], onSave, onCre
               {filtered.length === 0 && <p className="px-2 py-1.5 text-sm text-muted">Nada encontrado.</p>}
             </div>
 
-            {kind !== "sdr_select" && kind !== "status_select" && filter.trim() !== "" && !exactMatch && (
+            {kind !== "sdr_select" && kind !== "closer_select" && kind !== "status_select" && filter.trim() !== "" && !exactMatch && (
               <button
                 type="button"
                 onClick={commitCreate}

@@ -126,6 +126,18 @@ export async function moveDealAction(id: string, status: DealStatus) {
   return deal;
 }
 
+// Closer's inline picker (leads-table.tsx, per explicit user request —
+// "closer tem que ser selecionável tbm") — closer_id lives on deals, not
+// leads, so this bypasses updateLeadDetailsAction (leads-only) the same
+// way moveDealAction does for status. Only reachable for a lead that
+// already has a deal (same precondition Valor/Modelo/etc. already have).
+export async function updateDealCloserAction(id: string, closerId: string | null) {
+  const db = await createClient();
+  const deal = await updateDeal(db, id, { closer_id: closerId });
+  revalidatePath("/crm");
+  return deal;
+}
+
 // Opened instead of a direct status write whenever a deal moves to
 // "Fechado" (see the handleMove branch in deals-board.tsx and
 // closer-pipeline-board.tsx) — captures the closed value and which seller

@@ -44,7 +44,7 @@ export interface ColumnDef {
 // and going through the same handleMove-style perdido/fechado modal
 // branching the Kanban board already has (leads-board.tsx's
 // handleEtapaChange), so the inline picker never bypasses those rules.
-export type ColumnEditKind = "text" | "number" | "niche_select" | "sdr_select" | "combobox" | "status_select";
+export type ColumnEditKind = "text" | "number" | "niche_select" | "sdr_select" | "closer_select" | "combobox" | "status_select";
 
 export interface ColumnEditDef {
   kind: ColumnEditKind;
